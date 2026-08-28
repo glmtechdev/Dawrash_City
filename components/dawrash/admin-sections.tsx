@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -85,11 +85,20 @@ function percent(a: number, b: number) {
   return Math.min(100, Math.round((a / b) * 100))
 }
 
+/** Delays rendering until the component is mounted in the browser,
+ *  preventing SSR/hydration issues with DOM-measurement libraries. */
+function useIsClient() {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  return mounted
+}
+
 /* ------------------------------------------------------------------ */
 /*  Overview                                                            */
 /* ------------------------------------------------------------------ */
 
 export function OverviewSection() {
+  const isClient = useIsClient()
   const totalMembers = members.length
   const totalCollected = members.reduce((sum, m) => sum + savedKobo(m), 0)
   const totalTarget = members.reduce((sum, m) => sum + targetKobo(m), 0)
@@ -248,48 +257,54 @@ export function OverviewSection() {
         <p className="mt-1 text-sm text-muted-foreground">
           Amounts in millions of naira (target vs. paid).
         </p>
-        <div className="mt-5 h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              barGap={4}
-              margin={{ top: 4, right: 4, left: -16, bottom: 0 }}
-            >
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="var(--border)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="name"
-                tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v) => `₦${v}M`}
-              />
-              <Tooltip
-                cursor={{ fill: 'var(--muted)', opacity: 0.5 }}
-                contentStyle={{
-                  background: 'var(--popover)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '12px',
-                  fontSize: '12px',
-                  color: 'var(--popover-foreground)',
-                }}
-                formatter={(value, name) => [
-                  `₦${Number(value)}M`,
-                  name === 'paid' ? 'Paid' : 'Target',
-                ]}
-              />
-              <Bar dataKey="target" fill="var(--muted)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="paid" fill="#8b6914" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <div className="mt-5 h-56 min-h-0">
+          {isClient ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                barGap={4}
+                margin={{ top: 4, right: 4, left: -16, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--border)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v) => `₦${v}M`}
+                />
+                <Tooltip
+                  cursor={{ fill: 'var(--muted)', opacity: 0.5 }}
+                  contentStyle={{
+                    background: 'var(--popover)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    color: 'var(--popover-foreground)',
+                  }}
+                  formatter={(value, name) => [
+                    `₦${Number(value)}M`,
+                    name === 'paid' ? 'Paid' : 'Target',
+                  ]}
+                />
+                <Bar dataKey="target" fill="var(--muted)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="paid" fill="#8b6914" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-full items-center justify-center rounded-2xl bg-muted/30">
+              <span className="text-sm text-muted-foreground">Loading chart...</span>
+            </div>
+          )}
         </div>
         <div className="mt-3 flex items-center gap-5 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
