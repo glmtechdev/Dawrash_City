@@ -1,0 +1,96 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { OnboardingShell } from '@/components/dawrash/onboarding-shell'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Spinner } from '@/components/ui/spinner'
+import { COVENANT_TEXT } from '@/lib/dawrash-data'
+import { ArrowRight, ScrollText } from 'lucide-react'
+
+export default function CovenantPage() {
+  const router = useRouter()
+  const [accepted, setAccepted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  const paragraphs = COVENANT_TEXT.split('\n\n')
+
+  function handleAccept() {
+    if (!accepted || submitting) return
+    setSubmitting(true)
+    setTimeout(() => router.push('/dashboard'), 900)
+  }
+
+  return (
+    <OnboardingShell step={2}>
+      <div className="pt-6">
+        <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-gold">
+          <ScrollText className="size-6" aria-hidden />
+        </span>
+        <h1 className="mt-6 text-balance font-serif text-3xl font-bold text-foreground md:text-4xl">
+          The Dawrash Covenant
+        </h1>
+        <div className="mt-4 h-1 w-24 rounded-full bg-gold" aria-hidden />
+
+        <ScrollArea className="mt-6 h-80 rounded-3xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex flex-col gap-4 pr-3">
+            {paragraphs.map((p, i) => {
+              const [firstLine, ...rest] = p.split('\n')
+              const isHeading = i === 0
+              if (isHeading) {
+                return (
+                  <p key={i} className="font-serif text-lg font-bold text-foreground">
+                    {p}
+                  </p>
+                )
+              }
+              return (
+                <div key={i}>
+                  <p className="font-semibold text-foreground">{firstLine}</p>
+                  {rest.length ? (
+                    <p className="mt-1 leading-relaxed text-muted-foreground">{rest.join(' ')}</p>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        </ScrollArea>
+
+        <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-card p-4">
+          <Checkbox
+            checked={accepted}
+            onCheckedChange={(v) => setAccepted(v === true)}
+            className="mt-0.5 data-[state=checked]:border-gold data-[state=checked]:bg-gold"
+          />
+          <span className="text-sm font-medium text-foreground">
+            I have read and I irrevocably accept this covenant.
+          </span>
+        </label>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Your acceptance will be recorded with a timestamp and your IP address.
+        </p>
+
+        <Button
+          size="lg"
+          disabled={!accepted || submitting}
+          onClick={handleAccept}
+          className="mt-6 h-12 w-full rounded-full bg-gold text-base text-gold-foreground hover:bg-gold/90 sm:w-auto sm:px-10"
+        >
+          {submitting ? (
+            <>
+              <Spinner data-icon="inline-start" />
+              Recording acceptance
+            </>
+          ) : (
+            <>
+              I Accept &amp; Continue
+              <ArrowRight data-icon="inline-end" />
+            </>
+          )}
+        </Button>
+      </div>
+    </OnboardingShell>
+  )
+}
