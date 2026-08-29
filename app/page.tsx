@@ -9,14 +9,9 @@ import {
   Building2,
   ScrollText,
   ArrowRight,
-  Sparkles,
   Lock,
   Layers,
-  CheckCircle2,
   LandPlot,
-  ArrowUpRight,
-  ChevronRight,
-  ChevronLeft,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -73,34 +68,34 @@ export default function LandingPage() {
           {activeTab === 'hero' && (
             <div className="animate-in fade-in zoom-in-95 duration-500 flex w-full max-w-2xl flex-col justify-center">
               <div className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90 shadow-sm backdrop-blur-md sm:text-xs">
-                <Sparkles className="size-3.5 text-[#e5b85c]" />
+                <ShieldCheck className="size-3.5 text-[#e5b85c]" />
                 <span>Gospel Labour Ministry Exclusive</span>
               </div>
 
-              <h1 className="font-serif text-3xl font-extrabold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl">
+              <h1 className="font-serif text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-7xl">
                 Own Your Place in{' '}
-                <span className="block bg-gradient-to-r from-[#edd39b] via-[#c99a3b] to-[#b38528] bg-clip-text text-transparent drop-shadow-sm">
+                <span className="block bg-gradient-to-r from-[#edd39b] via-[#c99a3b] to-[#b38528] bg-clip-text text-5xl text-transparent drop-shadow-sm sm:text-6xl md:text-8xl">
                   Dawrash City
                 </span>
               </h1>
 
-              <p className="mt-4 max-w-lg text-pretty text-sm leading-relaxed text-white/80 sm:text-base md:text-lg">
+              <p className="mt-5 max-w-lg text-pretty text-base leading-relaxed text-white/80 sm:text-lg md:text-xl">
                 A dedicated community for GLM church members to acquire surveyed, documented land with flexible, self-paced contributions.
               </p>
 
               {/* Quick Spec Highlights */}
-              <div className="mt-6 flex flex-wrap gap-2.5 sm:gap-3">
-                <div className="rounded-2xl border border-white/15 bg-white/5 px-3.5 py-2 backdrop-blur-md">
+              <div className="mt-7 flex flex-wrap gap-2.5 sm:gap-3">
+                <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 backdrop-blur-md">
                   <p className="text-[10px] uppercase tracking-wider text-white/60">Fixed Rate</p>
-                  <p className="font-serif text-sm font-bold text-gold sm:text-base">₦2,000,000 / Plot</p>
+                  <p className="font-serif text-base font-bold text-gold sm:text-lg">₦2,000,000 / Plot</p>
                 </div>
-                <div className="rounded-2xl border border-white/15 bg-white/5 px-3.5 py-2 backdrop-blur-md">
+                <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 backdrop-blur-md">
                   <p className="text-[10px] uppercase tracking-wider text-white/60">Allocation</p>
-                  <p className="font-serif text-sm font-bold text-white sm:text-base">1 to 3 Plots Max</p>
+                  <p className="font-serif text-base font-bold text-white sm:text-lg">No Plot Limit</p>
                 </div>
-                <div className="rounded-2xl border border-white/15 bg-white/5 px-3.5 py-2 backdrop-blur-md">
+                <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 backdrop-blur-md">
                   <p className="text-[10px] uppercase tracking-wider text-white/60">Payments</p>
-                  <p className="font-serif text-sm font-bold text-white sm:text-base">No Deadlines or Penalties</p>
+                  <p className="font-serif text-base font-bold text-white sm:text-lg">No Deadlines or Penalties</p>
                 </div>
               </div>
             </div>
@@ -114,7 +109,7 @@ export default function LandingPage() {
                 <span>Land Terms & Parameters</span>
               </div>
 
-              <h2 className="font-serif text-xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+              <h2 className="font-serif text-2xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">
                 Documented Ownership Without Commercial Pressure
               </h2>
 
@@ -124,7 +119,7 @@ export default function LandingPage() {
                     <ShieldCheck className="size-5" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-sm font-bold text-white sm:mt-3.5 sm:text-base">Surveyed & Reserved</h3>
+                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Surveyed & Reserved</h3>
                     <p className="mt-1 text-xs leading-relaxed text-white/70">
                       Plots are officially surveyed and registered under GLM trusteeship from your initial contribution.
                     </p>
@@ -136,9 +131,9 @@ export default function LandingPage() {
                     <Building2 className="size-5" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-sm font-bold text-white sm:mt-3.5 sm:text-base">Dedicated NUBAN</h3>
+                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Dedicated NUBAN</h3>
                     <p className="mt-1 text-xs leading-relaxed text-white/70">
-                      Each member gets a personal Wema Bank virtual account for seamless, automatically verified transfers.
+                      Each member receives a personal Wema Bank account number to direct all land savings contributions.
                     </p>
                   </div>
                 </div>
@@ -148,7 +143,7 @@ export default function LandingPage() {
                     <Layers className="size-5" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-sm font-bold text-white sm:mt-3.5 sm:text-base">Zero Interest or Fees</h3>
+                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Zero Interest or Fees</h3>
                     <p className="mt-1 text-xs leading-relaxed text-white/70">
                       100% of your contributions go toward your land target. No hidden maintenance or interest charges.
                     </p>
@@ -166,7 +161,7 @@ export default function LandingPage() {
                 <span>The 4-Step Covenant</span>
               </div>
 
-              <h2 className="font-serif text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+              <h2 className="font-serif text-2xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">
                 From Church Member to Certificate Holder
               </h2>
 
@@ -175,7 +170,7 @@ export default function LandingPage() {
                   <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
                     01
                   </span>
-                  <h4 className="mt-2.5 font-serif text-sm font-bold text-white">Church SSO</h4>
+                  <h4 className="mt-2.5 font-serif text-base font-bold text-white">Church SSO</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">
                     Confirm your GLM registered email to unlock member access.
                   </p>
@@ -185,9 +180,9 @@ export default function LandingPage() {
                   <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
                     02
                   </span>
-                  <h4 className="mt-2.5 font-serif text-sm font-bold text-white">Plot Count</h4>
+                  <h4 className="mt-2.5 font-serif text-base font-bold text-white">Plot Count</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                    Lock in 1, 2, or 3 plots at the fixed ₦2,000,000 rate.
+                    Lock in your plots at the fixed ₦2,000,000 rate — as many as you want.
                   </p>
                 </div>
 
@@ -195,7 +190,7 @@ export default function LandingPage() {
                   <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
                     03
                   </span>
-                  <h4 className="mt-2.5 font-serif text-sm font-bold text-white">Digital Covenant</h4>
+                  <h4 className="mt-2.5 font-serif text-base font-bold text-white">Digital Covenant</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">
                     Sign the timestamped legal agreement online.
                   </p>
@@ -205,9 +200,9 @@ export default function LandingPage() {
                   <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
                     04
                   </span>
-                  <h4 className="mt-2.5 font-serif text-sm font-bold text-white">Live Savings</h4>
+                  <h4 className="mt-2.5 font-serif text-base font-bold text-white">Live Savings</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                    Save via bank transfer and receive your title certificate.
+                    Save via bank transfer at your own pace and receive your title certificate upon full payment.
                   </p>
                 </div>
               </div>
