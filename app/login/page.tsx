@@ -79,7 +79,7 @@ function LoginForm() {
               <ol className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground list-decimal pl-4">
                 <li>Open the <strong>GLM Members App</strong> on your phone or browser.</li>
                 <li>Go to your <strong>Profile</strong> tab.</li>
-                <li>Tap <strong>"Open Dawrash City"</strong> — you will be securely logged directly into your dashboard.</li>
+                <li>Tap <strong>&quot;Open Dawrash City&quot;</strong> to be logged directly into your dashboard.</li>
               </ol>
             </div>
           </div>
@@ -87,7 +87,7 @@ function LoginForm() {
 
         <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-center text-xs text-gold">
           <Sparkles className="inline-block size-3.5 mr-1" />
-          No password required — your verified GLM church membership handles all authentication.
+          No password required. Your verified GLM church membership handles all authentication.
         </div>
       </div>
 
