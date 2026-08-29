@@ -50,9 +50,15 @@ export async function checkMembership(
       // exchanges the token then redirects to /onboarding/plots (new
       // members) or /dashboard (returning members).
       emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      // Store the member's name so the callback can pre-populate profile
+      // Store bridge data in user metadata so the callback trigger and
+      // handle_new_user() DB trigger can access it without a second
+      // bridge call.
       data: {
         full_name: bridge.full_name,
+        // The UUID from the GLM Members DB — stored so we can always
+        // trace a Dawrash user back to their source record across the
+        // two separate Supabase projects.
+        glm_member_id: bridge.member_id,
       },
     },
   })
