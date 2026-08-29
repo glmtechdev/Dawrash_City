@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { MemberLayout } from '@/components/dawrash/member-layout'
 import { PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -59,7 +58,7 @@ export function TransactionsContent({ member }: { member: Member }) {
     .reduce((s, t) => s + t.amountKobo, 0)
 
   return (
-    <MemberLayout>
+    <div>
       <div>
         <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">
           Payment History
@@ -212,6 +211,6 @@ export function TransactionsContent({ member }: { member: Member }) {
           ))}
         </ul>
       )}
-    </MemberLayout>
+    </div>
   )
 }
