@@ -195,7 +195,7 @@ export default function PlotSelectionPage() {
         </div>
 
         <p className="mt-6 rounded-2xl border border-border bg-muted/60 p-4 text-sm text-muted-foreground">
-          Your target will be locked at this amount and cannot be changed later.
+          You can increase your target later from your profile, but you cannot reduce it below what you have already paid.
         </p>
 
         <Button

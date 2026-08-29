@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { MemberLayout } from '@/components/dawrash/member-layout'
+import { UpdateTargetDialog } from '@/components/dawrash/update-target-dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { getCurrentMemberServer } from '@/lib/member-data'
-import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira } from '@/lib/dawrash-data'
+import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira, PRICE_PER_PLOT_KOBO } from '@/lib/dawrash-data'
 import { CircleCheck, LandPlot, LogOut, Mail, CalendarDays, TrendingUp } from 'lucide-react'
 
 function formatDate(iso: string): string {
@@ -25,6 +26,8 @@ export default async function ProfilePage() {
   const saved = savedKobo(member)
   const target = targetKobo(member)
   const percent = progressPercent(member)
+  const minPlots = Math.max(1, Math.floor(saved / PRICE_PER_PLOT_KOBO))
+  const canUpdateTarget = member.status !== 'completed' && member.plots > 0
 
   return (
     <MemberLayout>
@@ -103,9 +106,14 @@ export default async function ProfilePage() {
 
       {/* Savings snapshot */}
       <section className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center gap-2">
-          <TrendingUp className="size-5 text-gold" aria-hidden />
-          <h2 className="font-serif text-lg font-bold text-foreground">Savings Snapshot</h2>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="size-5 text-gold" aria-hidden />
+            <h2 className="font-serif text-lg font-bold text-foreground">Savings Snapshot</h2>
+          </div>
+          {canUpdateTarget && (
+            <UpdateTargetDialog currentPlots={member.plots} minPlots={minPlots} />
+          )}
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-3">
