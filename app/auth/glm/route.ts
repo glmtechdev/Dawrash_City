@@ -129,15 +129,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=session_failed`);
   }
 
-  // The generated link looks like:
-  // https://<project>.supabase.co/auth/v1/verify?token=xxx&type=magiclink&redirect_to=...
-  // We redirect to it with our callback as the redirect_to,
-  // which creates the session then sends them to the right page.
-  const supabaseVerifyUrl = new URL(linkData.properties.action_link);
-  supabaseVerifyUrl.searchParams.set(
+  // action_link is the full Supabase verify URL. It already contains
+  // redirect_to pointing to the Dawrash site URL set in the Supabase
+  // dashboard. We just need to append our destination as a query param
+  // so the callback knows where to send the member after verifying.
+  const destination = isNewMember ? "/onboarding/plots" : "/dashboard";
+  const actionLink = new URL(linkData.properties.action_link);
+  actionLink.searchParams.set(
     "redirect_to",
-    `${origin}/auth/callback?glm=1&next=${isNewMember ? "/onboarding/plots" : "/dashboard"}`
+    `${origin}/auth/callback?next=${encodeURIComponent(destination)}`
   );
 
-  return NextResponse.redirect(supabaseVerifyUrl.toString());
+  return NextResponse.redirect(actionLink.toString());
 }
