@@ -109,44 +109,50 @@ export default function LandingPage() {
           {/* TAB 2: PLOT ALLOCATION & SPECIFIC TERMS */}
           {activeTab === 'allocation' && (
             <div className="animate-in fade-in zoom-in-95 duration-500 w-full max-w-3xl">
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
                 <LandPlot className="size-3" />
                 <span>Land Terms & Parameters</span>
               </div>
 
-              <h2 className="font-serif text-2xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
+              <h2 className="font-serif text-xl font-bold tracking-tight text-white sm:text-3xl md:text-4xl">
                 Documented Ownership Without Commercial Pressure
               </h2>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-3xl border border-white/15 bg-white/[0.06] p-4.5 backdrop-blur-md transition-all hover:border-gold/40 sm:p-5">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-gold/20 text-gold">
+                <div className="flex items-start gap-3 rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:flex-col sm:p-5">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold">
                     <ShieldCheck className="size-5" />
                   </div>
-                  <h3 className="mt-3.5 font-serif text-base font-bold text-white">Surveyed & Reserved</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-white/70">
-                    Plots are officially surveyed and registered under GLM trusteeship from your initial contribution.
-                  </p>
+                  <div>
+                    <h3 className="font-serif text-sm font-bold text-white sm:mt-3.5 sm:text-base">Surveyed & Reserved</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-white/70">
+                      Plots are officially surveyed and registered under GLM trusteeship from your initial contribution.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="rounded-3xl border border-white/15 bg-white/[0.06] p-4.5 backdrop-blur-md transition-all hover:border-gold/40 sm:p-5">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-gold/20 text-gold">
+                <div className="flex items-start gap-3 rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:flex-col sm:p-5">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold">
                     <Building2 className="size-5" />
                   </div>
-                  <h3 className="mt-3.5 font-serif text-base font-bold text-white">Dedicated NUBAN</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-white/70">
-                    Each member gets a personal Wema Bank virtual account for seamless, automatically verified transfers.
-                  </p>
+                  <div>
+                    <h3 className="font-serif text-sm font-bold text-white sm:mt-3.5 sm:text-base">Dedicated NUBAN</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-white/70">
+                      Each member gets a personal Wema Bank virtual account for seamless, automatically verified transfers.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="rounded-3xl border border-white/15 bg-white/[0.06] p-4.5 backdrop-blur-md transition-all hover:border-gold/40 sm:p-5">
-                  <div className="flex size-9 items-center justify-center rounded-xl bg-gold/20 text-gold">
+                <div className="flex items-start gap-3 rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:flex-col sm:p-5">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold">
                     <Layers className="size-5" />
                   </div>
-                  <h3 className="mt-3.5 font-serif text-base font-bold text-white">Zero Interest or Fees</h3>
-                  <p className="mt-1.5 text-xs leading-relaxed text-white/70">
-                    100% of your contributions go toward your land target. No hidden maintenance or interest charges.
-                  </p>
+                  <div>
+                    <h3 className="font-serif text-sm font-bold text-white sm:mt-3.5 sm:text-base">Zero Interest or Fees</h3>
+                    <p className="mt-1 text-xs leading-relaxed text-white/70">
+                      100% of your contributions go toward your land target. No hidden maintenance or interest charges.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
