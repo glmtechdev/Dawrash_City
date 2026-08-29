@@ -31,8 +31,12 @@ export async function GET(request: NextRequest) {
   const GLM_ANON = process.env.MEMBERS_BRIDGE_ANON_KEY
     ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlubmlkZ2Vnc2pqZWNsdmtza2V2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTM2NDksImV4cCI6MjA5MDI2OTY0OX0.aidDrhnobEDvyWnCyUP5AhH9gxfoKHXt4nsytKpCywQ";
 
-  const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://fzigfgczvaknoczrhmsc.supabase.co";
+  const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://fzigfgczvaknocznhmsc.supabase.co";
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+
+  // ── debug: log which env vars are present (never log the values) ──
+  console.log("[auth/glm] env check — SUPABASE_SERVICE_ROLE_KEY present:", !!SERVICE_KEY)
+  console.log("[auth/glm] env check — NEXT_PUBLIC_SUPABASE_URL:", DAWRASH_URL)
 
   // ── 1. Token must be present ───────────────────────────────────
   if (!token) {
