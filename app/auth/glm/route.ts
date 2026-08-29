@@ -20,8 +20,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 // GLM Members DB — used only to validate the incoming token
-const GLM_URL     = process.env.GLM_SUPABASE_URL!;
-const GLM_ANON    = process.env.MEMBERS_BRIDGE_ANON_KEY!;
+// The URL is public (not a secret) so we hardcode it as a fallback
+const GLM_URL  = process.env.GLM_SUPABASE_URL ?? "https://innidgegsjjeclvkskev.supabase.co";
+const GLM_ANON = process.env.MEMBERS_BRIDGE_ANON_KEY!;
 
 // Dawrash City Supabase project — used to create the local session
 const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -39,8 +40,8 @@ export async function GET(request: NextRequest) {
   // ── 2. Validate token via GLM Supabase auth API ────────────────
   // We pass the token to GLM's getUser — if it's valid and not
   // expired, we get back the user's identity. No shared secret needed.
-  if (!GLM_URL || !GLM_ANON) {
-    console.error("[auth/glm] GLM_SUPABASE_URL or MEMBERS_BRIDGE_ANON_KEY is not set");
+  if (!GLM_ANON) {
+    console.error("[auth/glm] MEMBERS_BRIDGE_ANON_KEY is not set");
     return NextResponse.redirect(`${origin}/login?error=config`);
   }
 
