@@ -8,7 +8,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spinner } from '@/components/ui/spinner'
 import { COVENANT_TEXT } from '@/lib/dawrash-data'
+import { acceptCovenant } from '@/app/actions'
 import { ArrowRight, ScrollText } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function CovenantPage() {
   const router = useRouter()
@@ -17,10 +19,17 @@ export default function CovenantPage() {
 
   const paragraphs = COVENANT_TEXT.split('\n\n')
 
-  function handleAccept() {
+  async function handleAccept() {
     if (!accepted || submitting) return
     setSubmitting(true)
-    setTimeout(() => router.push('/dashboard'), 900)
+
+    const res = await acceptCovenant()
+    if (res.success) {
+      router.push('/dashboard')
+    } else {
+      toast.error(res.error || 'Failed to record covenant acceptance')
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -81,7 +90,7 @@ export default function CovenantPage() {
           {submitting ? (
             <>
               <Spinner data-icon="inline-start" />
-              Recording acceptance
+              Recording acceptance...
             </>
           ) : (
             <>
@@ -94,3 +103,4 @@ export default function CovenantPage() {
     </OnboardingShell>
   )
 }
+

@@ -1,65 +1,71 @@
 'use server'
 
-import { checkMemberBridge } from '@/lib/bridge'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
-export type CheckMembershipResult =
-  | { status: 'not_member' }
-  | { status: 'error'; message: string }
-  | { status: 'link_sent'; email: string; full_name: string }
+export type ActionResult =
+  | { success: true }
+  | { success: false; error: string }
 
-export async function checkMembership(email: string): Promise<CheckMembershipResult> {
-  const normalised = email.trim().toLowerCase()
-
-  const bridge = await checkMemberBridge(normalised)
-
-  if (!bridge.allowed) {
-    if ('error' in bridge && bridge.error) {
-      return { status: 'error', message: 'Verification service is unavailable. Try again shortly.' }
-    }
-    return { status: 'not_member' }
+/**
+ * Save the member's selected number of plots (1, 2, or 3) during onboarding.
+ */
+export async function savePlotSelection(plots: number): Promise<ActionResult> {
+  if (plots < 1 || plots > 3) {
+    return { success: false, error: 'Invalid plot count. Please select 1, 2, or 3 plots.' }
   }
 
   const supabase = await createSupabaseServerClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email: normalised,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      shouldCreateUser: true,
-      data: {
-        full_name: bridge.full_name,
-        glm_member_id: bridge.member_id ?? null,
-      },
-    },
-  })
-
-  if (error) {
-    console.error('[actions] signInWithOtp error:', error.message, error.status)
-    return { status: 'error', message: error.message }
+  if (userError || !user) {
+    return { success: false, error: 'User not authenticated. Please log in via GLM App.' }
   }
 
-  return { status: 'link_sent', email: normalised, full_name: bridge.full_name }
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ plots })
+    .eq('id', user.id)
+
+  if (updateError) {
+    console.error('[actions] savePlotSelection error:', updateError.message)
+    return { success: false, error: updateError.message }
+  }
+
+  return { success: true }
 }
 
-export type ResendResult =
-  | { status: 'sent' }
-  | { status: 'error'; message: string }
-
-export async function resendMagicLink(email: string): Promise<ResendResult> {
+/**
+ * Record acceptance of the Dawrash Covenant and complete member onboarding.
+ */
+export async function acceptCovenant(): Promise<ActionResult> {
   const supabase = await createSupabaseServerClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email: email.trim().toLowerCase(),
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-      shouldCreateUser: false,
-    },
-  })
-
-  if (error) {
-    return { status: 'error', message: error.message }
+  if (userError || !user) {
+    return { success: false, error: 'User not authenticated. Please log in via GLM App.' }
   }
 
-  return { status: 'sent' }
+  const now = new Date().toISOString()
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({
+      covenant_signed_at: now,
+      status: 'active',
+      onboarding_complete: true,
+    })
+    .eq('id', user.id)
+
+  if (updateError) {
+    console.error('[actions] acceptCovenant error:', updateError.message)
+    return { success: false, error: updateError.message }
+  }
+
+  // Also update user metadata so future auth callback checks know onboarding is complete
+  await supabase.auth.updateUser({
+    data: { onboarding_complete: true },
+  })
+
+  return { success: true }
 }
+

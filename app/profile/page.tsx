@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
-import { currentMember, plotLabel, progressPercent, savedKobo, targetKobo, formatNaira } from '@/lib/dawrash-data'
+import { getCurrentMemberServer } from '@/lib/member-data'
+import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira } from '@/lib/dawrash-data'
 import { CircleCheck, LandPlot, LogOut, Mail, CalendarDays, TrendingUp } from 'lucide-react'
 
 function formatDate(iso: string): string {
@@ -15,8 +16,12 @@ function formatDate(iso: string): string {
   })
 }
 
-export default function ProfilePage() {
-  const member = currentMember
+export const dynamic = 'force-dynamic'
+
+export default async function ProfilePage() {
+
+  const member = await getCurrentMemberServer()
+
   const saved = savedKobo(member)
   const target = targetKobo(member)
   const percent = progressPercent(member)

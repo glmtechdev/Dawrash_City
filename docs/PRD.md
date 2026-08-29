@@ -1,6 +1,6 @@
 # Dawrash City — Product Requirements Document
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Last updated:** August 2026  
 **Status:** Active Development  
 **Owner:** Gospel Labour Ministry (GLM)
@@ -11,7 +11,7 @@
 
 Dawrash City is a faith-based land savings platform built exclusively for registered members of Gospel Labour Ministry (GLM). It enables members to reserve plots of land within the Dawrash City development project, track their savings progress, and receive land certificates upon full payment.
 
-The platform is accessed through the GLM Members app via Single Sign-On (SSO). Members do not create a separate account — their GLM membership is their identity.
+The platform is accessed exclusively through the GLM Members app via Single Sign-On (SSO). Members do not create a separate account or log in via separate passwords or email magic links — their GLM membership is their identity.
 
 ---
 
@@ -34,10 +34,10 @@ Dawrash City solves all of these.
 | Goal | Metric |
 |---|---|
 | Give every eligible member a clear view of their savings progress | Dashboard loads with accurate data on first login |
-| Enforce membership gate — non-members cannot access the platform | 100% of access attempts validated through GLM bridge |
+| Enforce membership gate — non-members cannot access the platform | 100% of access attempts validated through GLM Supabase |
 | Automate progress tracking from bank transfers | Admin confirms payment → member dashboard updates immediately |
 | Provide admin with full programme visibility | Admin can see all members, totals, flags, and certificate queue |
-| Legally bind members through a digital covenant | Covenant acceptance recorded with timestamp |
+| Legally bind members through a digital covenant | Covenant acceptance recorded in Supabase with timestamp |
 
 ---
 
@@ -48,6 +48,7 @@ Dawrash City solves all of these.
 - Member-to-member plot transfers (admin-only process)
 - Mobile native app (web app only, mobile-first responsive)
 - Multiple land projects (Dawrash City only in V1)
+- Direct email magic-link sign-in on Dawrash web app (SSO via GLM app only)
 
 ---
 
@@ -57,7 +58,7 @@ Dawrash City solves all of these.
 A registered GLM church member who has been approved for the Dawrash City savings programme.
 
 **Entry point:** GLM Members app → Profile → "Open Dawrash City" button  
-**Access:** SSO via GLM session token — no separate password  
+**Access:** Pure SSO via GLM session token (`/auth/glm?token=<jwt>`)  
 **Capabilities:**
 - View savings progress and payment history
 - Complete onboarding (plot selection + covenant signing)
@@ -77,7 +78,11 @@ A GLM staff member with elevated access to the Dawrash admin panel.
 
 ---
 
-## 6. Authentication Flow
+## 6. Authentication Flow (Pure SSO)
+
+> **Architectural Note:** GLM Members DB and Dawrash City are **two separate Supabase projects on separate accounts**.
+> - **GLM Members DB**: `https://innidgegsjjeclvkskev.supabase.co`
+> - **Dawrash City DB**: `https://fzigfgczvaknocznhmsc.supabase.co`
 
 ```
 Member opens GLM Members app
@@ -86,41 +91,39 @@ Logs in with their GLM credentials (email + password)
         ↓
 Visits Profile page → clicks "Open Dawrash City"
         ↓
-GLM app reads the active Supabase session token
-Appends it to: https://dawrashcity.vercel.app/auth/glm?token=<jwt>
+GLM app reads active Supabase session token and redirects to:
+https://dawrashcity.vercel.app/auth/glm?token=<jwt>
         ↓
 /auth/glm route on Dawrash:
-  1. Verifies JWT using shared secret
+  1. Validates GLM JWT via GLM Supabase project (getUser)
   2. Extracts member identity (email, name, GLM member ID)
-  3. Upserts profile row in Dawrash DB
-  4. Generates a Dawrash magic link via service role
-  5. Redirects through Supabase verify → /auth/callback
-        ↓
-/auth/callback:
-  - First visit → /onboarding/plots
-  - Returning   → /dashboard
+  3. Upserts profile row in Dawrash DB via Service Role Client
+  4. Generates direct server-side session token
+  5. Redirects user into Dawrash app:
+       - First visit (onboarding incomplete) → /onboarding/plots
+       - Returning member                    → /dashboard
 ```
 
-Members can also sign in directly on Dawrash via `/login` using their church email. The bridge validates membership and sends a magic link.
+*Note: Direct email magic-link log-in on Dawrash is disabled. All authentication flows originate from the GLM Members app SSO.*
 
 ---
 
 ## 7. Onboarding Flow
 
-New members who land on `/onboarding/plots` for the first time go through two steps:
+New members landing on `/onboarding/plots` for the first time complete two steps, which persist data directly to Supabase:
 
 ### Step 1 — Plot Selection (`/onboarding/plots`)
-- Member selects 1, 2, or 3 plots
-- Each plot costs ₦2,000,000
+- Member selects 1, 2, or 3 plots (₦2,000,000 per plot)
+- Clicks "Continue" → triggers `savePlotSelection` Server Action
+- Writes `plots` count to member profile row in Dawrash Supabase
 - Target is locked permanently after this step
-- Cannot be changed without admin intervention
 
 ### Step 2 — Covenant Signing (`/onboarding/covenant`)
 - Member reads the full Dawrash City Land Savings Covenant
-- Must scroll through and tick acceptance checkbox
-- Acceptance is recorded with timestamp
-- Member status changes from `pending_covenant` to `active`
-- Member is redirected to dashboard
+- Ticks acceptance checkbox and clicks "I Accept & Continue"
+- Triggers `acceptCovenant` Server Action
+- Records `covenant_signed_at` timestamp, sets `status = 'active'`, and `onboarding_complete = true` in Supabase
+- Member is redirected to `/dashboard`
 
 ---
 
@@ -140,33 +143,26 @@ New members who land on `/onboarding/plots` for the first time go through two st
 - Instruction: use your name as transfer narration
 
 ### Recent Payments
-- Last 5 transactions with date, amount, method, status
-- Colour coded: green (confirmed), amber (pending), red (failed)
+- Last 5 transactions fetched live from Supabase `transactions` table
+- Status badges: green (confirmed), amber (pending), red (failed)
 - Link to full transaction history
-
-### Quick Stats Row
-- Member since date
-- Total confirmed payments count
-- Covenant signed status
 
 ---
 
 ## 9. Transaction History
 
-- Full paginated list of all transfers
-- Filter tabs: All · Confirmed · Pending · Failed
+- Live transaction listing queried from Supabase `transactions` table
+- Interactive filter tabs: All · Confirmed · Pending
 - Per-row: date, reference, method, amount, status badge
 - Summary strip: total saved, pending total, progress %
-- Empty state with clear messaging
 
 ---
 
 ## 10. Profile Page
 
-- Member name, email, initials avatar
+- Member name, email, initials avatar loaded live from Supabase
 - Plot target badge
-- Member since date
-- Covenant signed date
+- Member since date & covenant signed timestamp
 - Savings snapshot (saved / target / progress %)
 - Sign out button
 
@@ -183,153 +179,89 @@ New members who land on `/onboarding/plots` for the first time go through two st
 ### Members Tab
 - Searchable, filterable member table
 - Filter by status (Active / Completed / Pending Covenant)
-- Inline mini progress bar per member row
-- Click row → Member Detail Drawer:
-  - Full profile info
-  - Progress ring and amount breakdown
-  - Full transaction history
-  - Covenant signed date
+- Click row → Member Detail Drawer (profile, progress, transactions)
 
 ### Certificate Queue Tab
-- Lists all members with `completed` status
-- "Mark as Issued" button per member
-- Issued-this-session log
+- Lists completed members eligible for certificates
+- "Mark as Issued" action
 
 ### Audit Flags Tab
-- Lists reconciliation mismatches
-- Shows: member name, reference, expected amount, recorded amount, variance
-- "Resolve" button per flag
-- Resolved-this-session log
+- Lists reconciliation mismatches for admin resolution
 
 ---
 
-## 12. Data Model
+## 12. Data Model (Dawrash Supabase Project)
 
 ### `profiles`
 | Column | Type | Notes |
 |---|---|---|
-| id | uuid | mirrors auth.users.id |
-| full_name | text | from GLM bridge |
+| id | uuid | FK to auth.users.id |
+| full_name | text | from GLM app SSO |
 | email | text | unique |
 | initials | text | derived from full_name |
 | glm_member_id | uuid | links back to GLM Members DB |
-| plots | smallint | 0–3, set at onboarding |
+| plots | smallint | 1–3, set during onboarding |
 | nuban | text | payment account, set by admin |
 | bank | text | default Wema Bank |
 | status | enum | pending_covenant / active / completed |
 | onboarding_complete | boolean | controls redirect on login |
-| member_since | date | |
-| covenant_signed_at | timestamptz | |
+| created_at | timestamptz | member join date |
+| covenant_signed_at | timestamptz | set on covenant acceptance |
 
 ### `transactions`
 | Column | Type | Notes |
 |---|---|---|
-| id | uuid | |
-| member_id | uuid | FK to profiles |
+| id | uuid | PK |
+| member_id | uuid | FK to profiles.id |
 | amount_kobo | bigint | naira × 100 |
 | method | text | e.g. Bank Transfer |
 | status | enum | pending / confirmed / failed |
-| reference | text | unique, bank reference |
-| paid_at | date | |
-
-### `audit_flags`
-Links transaction + member. Stores expected vs recorded amount. `variance_kobo` is a generated column.
-
-### `certificates`
-One row per completed member. Created automatically by DB trigger when savings reach 100%.
+| reference | text | unique reference |
+| paid_at | timestamptz | payment timestamp |
 
 ---
 
-## 13. Business Rules
+## 13. Integrations
 
-1. **Plot target is permanent.** Once set during onboarding it cannot be changed by the member. Admin can override.
-2. **All amounts in kobo.** Displayed in naira but stored and calculated as kobo integers.
-3. **Only confirmed transactions count toward progress.** Pending and failed are excluded from savings total.
-4. **Covenant must be signed before member status becomes active.** Members who skip onboarding cannot access the dashboard.
-5. **Member completion is automatic.** When confirmed payments reach the plot target, a DB trigger sets status to `completed` and creates a certificate row.
-6. **Non-refundable.** Stated in covenant. No refund flow exists in V1.
-7. **Transfer narration must be the member's name.** Used by admin to match payments to members manually in V1.
+### GLM Members DB (`innidgegsjjeclvkskev.supabase.co`)
+- **Protocol**: Direct token validation via `getUser(token)` inside `/auth/glm`
+- **Purpose**: Authenticate GLM member identity during SSO
 
----
-
-## 14. Integrations
-
-### GLM Members DB (Supabase — separate project)
-- **Bridge endpoint:** `check-member` Edge Function
-- **Purpose:** Validate that an email belongs to an active, eligible GLM member before granting Dawrash access
-- **Protocol:** POST with `x-members-bridge-secret` header
-- **Response:** `{ allowed, member_id, full_name }`
-- **No shared DB access** — only the bridge endpoint is called
-
-### Supabase (Dawrash project)
-- Auth: OTP magic link (passwordless)
-- Database: PostgreSQL with RLS
-- SSO entry: `/auth/glm` verifies GLM JWT using shared secret
+### Dawrash Supabase (`fzigfgczvaknocznhmsc.supabase.co`)
+- **Protocol**: `@supabase/ssr` server client + Service Role Client
+- **Purpose**: Manage Dawrash member sessions, profiles, plots, covenants, and transactions
 
 ---
 
-## 15. Security
+## 14. Security & Environment Variables
 
-- **RLS enabled** on all tables. Members can only read their own rows.
-- **Service role key** never exposed to the browser. Used only in server actions and route handlers.
-- **Bridge secret** is a shared secret stored as an environment variable. Rotatable without code changes.
-- **Magic links expire** in 10 minutes.
-- **Covenant acceptance** is timestamped server-side and stored permanently.
-- **`NEXT_PUBLIC_`** variables only contain non-sensitive config (URL, anon key).
+- **RLS Enabled**: On all Supabase database tables.
+- **Service Role Key**: Stored strictly in `SUPABASE_SERVICE_ROLE_KEY` environment variable. Never exposed to client bundles.
+- **SSO Tokens**: Validated server-side on every entry.
 
----
-
-## 16. Environment Variables
-
-| Variable | Where used | Sensitive |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Client + server | No |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Client + server | No |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Yes |
-| `SUPABASE_JWT_SECRET` | `/auth/glm` route | Yes |
-| `MEMBERS_BRIDGE_URL` | `lib/bridge.ts` | No |
-| `MEMBERS_BRIDGE_SECRET` | `lib/bridge.ts` | Yes |
-| `MEMBERS_BRIDGE_ANON_KEY` | `lib/bridge.ts` | Yes |
-| `NEXT_PUBLIC_SITE_URL` | Auth redirects | No |
+### Required Environment Variables
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` *(Required on Vercel Dashboard)*
+- `MEMBERS_BRIDGE_ANON_KEY`
+- `GLM_SUPABASE_URL`
+- `NEXT_PUBLIC_SITE_URL`
 
 ---
 
-## 17. Routes
+## 15. Routes
 
-| Route | Type | Access |
-|---|---|---|
-| `/` | Static | Public |
-| `/register` | Static | Public |
-| `/login` | Static | Public |
-| `/verify` | Static | Public |
-| `/auth/callback` | Dynamic | Public (token required) |
-| `/auth/glm` | Dynamic | Public (JWT required) |
-| `/onboarding/plots` | Static | Authenticated |
-| `/onboarding/covenant` | Static | Authenticated |
-| `/dashboard` | Static | Authenticated member |
-| `/transactions` | Static | Authenticated member |
-| `/profile` | Static | Authenticated member |
-| `/admin` | Static | Admin only |
-
----
-
-## 18. Roadmap
-
-### V1 (current)
-- SSO from GLM Members app
-- Plot selection + covenant signing
-- Member dashboard with savings progress
-- Manual payment recording by admin
-- Admin panel: members, certificates, audit flags
-
-### V2
-- Paystack virtual account per member (automatic payment matching)
-- Email notifications: payment confirmed, milestone reached, certificate issued
-- Admin: bulk transaction import from bank statement CSV
-- Member: plot transfer request flow
-
-### V3
-- Land certificate PDF generation and delivery
-- Member referral tracking
-- Multi-project support (beyond Dawrash City)
-- Mobile push notifications
+| Route | Type | Access | Purpose |
+|---|---|---|---|
+| `/` | Static | Public | Landing page |
+| `/login` | Static | Public | SSO instructions page |
+| `/register` | Static | Public | SSO redirection notice |
+| `/verify` | Static | Public | SSO guidance |
+| `/auth/glm` | Dynamic | Public (JWT required) | SSO entry point |
+| `/auth/callback` | Dynamic | Internal | Auth redirect handler |
+| `/onboarding/plots` | Static | Authenticated | Plot selection |
+| `/onboarding/covenant` | Static | Authenticated | Covenant signing |
+| `/dashboard` | Dynamic | Authenticated member | Member dashboard |
+| `/transactions` | Dynamic | Authenticated member | Payment history |
+| `/profile` | Dynamic | Authenticated member | Member profile |
+| `/admin` | Static | Admin only | Admin panel |

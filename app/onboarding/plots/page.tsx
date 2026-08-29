@@ -4,13 +4,30 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { OnboardingShell } from '@/components/dawrash/onboarding-shell'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import { PLOT_OPTIONS, PRICE_PER_PLOT_KOBO, formatNaira, plotLabel } from '@/lib/dawrash-data'
+import { savePlotSelection } from '@/app/actions'
 import { LandPlot, Check, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
 
 export default function PlotSelectionPage() {
   const router = useRouter()
   const [selected, setSelected] = useState<number | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  async function handleContinue() {
+    if (selected === null || saving) return
+    setSaving(true)
+
+    const res = await savePlotSelection(selected)
+    if (res.success) {
+      router.push('/onboarding/covenant')
+    } else {
+      toast.error(res.error || 'Failed to save plot selection')
+      setSaving(false)
+    }
+  }
 
   return (
     <OnboardingShell step={1}>
@@ -75,14 +92,24 @@ export default function PlotSelectionPage() {
 
         <Button
           size="lg"
-          disabled={selected === null}
-          onClick={() => router.push('/onboarding/covenant')}
+          disabled={selected === null || saving}
+          onClick={handleContinue}
           className="mt-6 h-12 w-full rounded-full bg-gold text-base text-gold-foreground hover:bg-gold/90 sm:w-auto sm:px-10"
         >
-          Continue
-          <ArrowRight data-icon="inline-end" />
+          {saving ? (
+            <>
+              <Spinner data-icon="inline-start" />
+              Saving selection...
+            </>
+          ) : (
+            <>
+              Continue
+              <ArrowRight data-icon="inline-end" />
+            </>
+          )}
         </Button>
       </div>
     </OnboardingShell>
   )
 }
+

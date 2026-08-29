@@ -24,12 +24,12 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const token = searchParams.get("token");
 
-  // ── All env vars read inside the handler (not module-level) ───
-  // Next.js evaluates module-level code at build time on Vercel.
-  // Reading inside the handler ensures we get runtime values.
+  // Derive public origin dynamically from request headers (x-forwarded-host / host)
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "dawrashcity.vercel.app";
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+  const appOrigin = host.includes("localhost") ? origin : `${proto}://${host}`;
 
-  // GLM anon key is PUBLIC — safe to hardcode as fallback.
-  // It is already exposed in the GLM app's browser bundle.
+  // ── All env vars read inside the handler (not module-level) ───
   const GLM_URL  = "https://innidgegsjjeclvkskev.supabase.co";
   const GLM_ANON = process.env.MEMBERS_BRIDGE_ANON_KEY
     ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlubmlkZ2Vnc2pqZWNsdmtza2V2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTM2NDksImV4cCI6MjA5MDI2OTY0OX0.aidDrhnobEDvyWnCyUP5AhH9gxfoKHXt4nsytKpCywQ";
@@ -37,19 +37,15 @@ export async function GET(request: NextRequest) {
   const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://fzigfgczvaknocznhmsc.supabase.co";
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
-  // ── debug: log which env vars are present (never log the values) ──
-  console.log("[auth/glm] env check — SUPABASE_SERVICE_ROLE_KEY present:", !!SERVICE_KEY)
-  console.log("[auth/glm] env check — NEXT_PUBLIC_SUPABASE_URL:", DAWRASH_URL)
-
   // ── 1. Token must be present ───────────────────────────────────
   if (!token) {
-    return NextResponse.redirect(`${origin}/login?error=missing_token`);
+    return NextResponse.redirect(`${appOrigin}/login?error=missing_token`);
   }
 
   // ── 2. Dawrash service key must be configured ──────────────────
   if (!SERVICE_KEY) {
     console.error("[auth/glm] SUPABASE_SERVICE_ROLE_KEY is not set");
-    return NextResponse.redirect(`${origin}/login?error=config_svc`);
+    return NextResponse.redirect(`${appOrigin}/login?error=config_svc`);
   }
 
   // ── 3. Validate token via GLM Supabase ─────────────────────────
@@ -61,7 +57,7 @@ export async function GET(request: NextRequest) {
 
   if (userError || !glmUser?.email) {
     console.error("[auth/glm] GLM token validation failed:", userError?.message);
-    return NextResponse.redirect(`${origin}/login?error=invalid_token`);
+    return NextResponse.redirect(`${appOrigin}/login?error=invalid_token`);
   }
 
   // ── 4. Extract identity ────────────────────────────────────────
@@ -99,25 +95,25 @@ export async function GET(request: NextRequest) {
 
   // ── 6. Generate a Dawrash magic-link and redirect ──────────────
   const destination = isNewMember ? "/onboarding/plots" : "/dashboard";
+  const callbackUrl = `${appOrigin}/auth/callback?next=${encodeURIComponent(destination)}`;
 
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
     type: "magiclink",
     email,
     options: {
+      redirectTo: callbackUrl,
       data: { full_name: fullName, glm_member_id: glmMemberId },
     },
   });
 
-  if (linkError || !linkData?.properties?.hashed_token) {
+  if (linkError || !linkData?.properties?.action_link) {
     console.error("[auth/glm] generateLink error:", linkError?.message);
-    return NextResponse.redirect(`${origin}/login?error=session_failed`);
+    return NextResponse.redirect(`${appOrigin}/login?error=session_failed`);
   }
 
   const actionLink = new URL(linkData.properties.action_link);
-  actionLink.searchParams.set(
-    "redirect_to",
-    `${origin}/auth/callback?next=${encodeURIComponent(destination)}`
-  );
+  actionLink.searchParams.set("redirect_to", callbackUrl);
 
   return NextResponse.redirect(actionLink.toString());
 }
+

@@ -5,8 +5,8 @@ import { CopyButton } from '@/components/dawrash/copy-button'
 import { PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { getCurrentMemberServer } from '@/lib/member-data'
 import {
-  currentMember,
   formatNaira,
   plotLabel,
   savedKobo,
@@ -60,8 +60,12 @@ function MilestoneLabel({ milestone, percent }: { milestone: number; percent: nu
   )
 }
 
-export default function DashboardPage() {
-  const member = currentMember
+export const dynamic = 'force-dynamic'
+
+export default async function DashboardPage() {
+
+  const member = await getCurrentMemberServer()
+
   const saved = savedKobo(member)
   const target = targetKobo(member)
   const remaining = Math.max(0, target - saved)
