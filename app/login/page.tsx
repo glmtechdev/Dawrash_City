@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { Suspense, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AuthShell } from '@/components/dawrash/auth-shell'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -12,29 +12,23 @@ import { Spinner } from '@/components/ui/spinner'
 import { checkMembership } from '@/app/actions'
 import { Mail, ArrowRight, CircleAlert, MailCheck } from 'lucide-react'
 
-/**
- * Login is passwordless — the member enters their church email,
- * we validate it through the bridge (same as register), then send
- * a Supabase OTP magic link.  No password field ever needed.
- */
-export default function LoginPage() {
+const glmErrorMessages: Record<string, string> = {
+  config: 'SSO is not configured correctly. Please contact support.',
+  missing_token: 'Sign-in link was invalid. Please try again from the Members app.',
+  invalid_token: 'Your session has expired. Please go back and click the button again.',
+  session_failed: 'Could not create your session. Please try again.',
+}
+
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [email, setEmail] = useState('')
   const [state, setState] = useState<'idle' | 'sent' | 'not_member' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
 
-  // Show error from /auth/glm redirect if present (e.g. ?error=config, ?error=invalid_token)
-  const searchParams = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search)
-    : null
-  const glmError = searchParams?.get('error')
-  const glmErrorMessages: Record<string, string> = {
-    config: 'SSO is not configured correctly. Please contact support.',
-    missing_token: 'Sign-in link was invalid. Please try again from the Members app.',
-    invalid_token: 'Your session has expired. Please go back and click the button again.',
-    session_failed: 'Could not create your session. Please try again.',
-  }
+  // Error passed from /auth/glm redirect (e.g. ?error=config, ?error=invalid_token)
+  const glmError = searchParams.get('error')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -159,5 +153,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </AuthShell>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
