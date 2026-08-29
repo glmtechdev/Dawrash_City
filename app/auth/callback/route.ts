@@ -23,6 +23,15 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/dashboard'
 
+  // Determine application public origin
+  const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? "https";
+
+  const appOrigin = (envSiteUrl && !envSiteUrl.includes("localhost"))
+    ? envSiteUrl
+    : (host && !host.includes("localhost") ? `${proto}://${host}` : origin);
+
   if (code) {
     const supabase = await createSupabaseServerClient()
     const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
@@ -80,12 +89,12 @@ export async function GET(request: NextRequest) {
         const isNewMember = !profile?.onboarding_complete
         const redirectTo = isNewMember ? '/onboarding/plots' : next
 
-        return NextResponse.redirect(`${origin}${redirectTo}`)
+        return NextResponse.redirect(`${appOrigin}${redirectTo}`)
       }
     }
 
     console.error('[auth/callback] session exchange error:', sessionError?.message)
   }
 
-  return NextResponse.redirect(`${origin}/register?error=link_expired`)
+  return NextResponse.redirect(`${appOrigin}/register?error=link_expired`)
 }

@@ -72,32 +72,34 @@ export async function GET(request: NextRequest) {
   const parts       = fullName.trim().split(" ");
   const initials    = ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
 
-  // ── 5. Upsert profile in Dawrash DB ───────────────────────────
+  // ── 5. Ensure user exists in Dawrash auth.users ─────────────
   const adminClient = createClient(DAWRASH_URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data: existing } = await adminClient
-    .from("profiles")
-    .select("id, onboarding_complete")
-    .eq("glm_member_id", glmMemberId)
-    .maybeSingle();
+  // Attempt to create the user in Dawrash auth.users if first visit
+  const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { full_name: fullName, glm_member_id: glmMemberId },
+  });
 
-  const isNewMember = !existing?.onboarding_complete;
+  let dawrashUserId = createData?.user?.id;
 
-  if (!existing) {
-    const { error: insertError } = await adminClient.from("profiles").insert({
-      glm_member_id: glmMemberId,
-      full_name: fullName,
-      email,
-      initials,
-    });
-    if (insertError && !insertError.message.includes("duplicate")) {
-      console.error("[auth/glm] profile insert error:", insertError.message);
-    }
+  if (!dawrashUserId && createError) {
+    console.log("[auth/glm] User already registered or creation notice:", createError.message);
   }
 
-  // ── 6. Generate a Dawrash magic-link and redirect ──────────────
+  // ── 6. Check existing profile in Dawrash DB ──────────────────
+  const { data: existingProfile } = await adminClient
+    .from("profiles")
+    .select("id, onboarding_complete")
+    .or(`glm_member_id.eq.${glmMemberId},email.eq.${email}`)
+    .maybeSingle();
+
+  const isNewMember = !existingProfile?.onboarding_complete;
+
+  // ── 7. Generate magic-link for Dawrash project ────────────────
   const destination = isNewMember ? "/onboarding/plots" : "/dashboard";
   const callbackUrl = `${appOrigin}/auth/callback?next=${encodeURIComponent(destination)}`;
 
@@ -115,6 +117,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appOrigin}/login?error=session_failed`);
   }
 
+  // Determine target auth.users id
+  const targetUserId = dawrashUserId || linkData.user?.id;
+
+  // ── 8. Upsert profile in Dawrash DB linked to auth.users.id ─────
+  if (targetUserId) {
+    // If an old profile row exists with a different ID (from before the fix), remove the orphaned row first
+    if (existingProfile && existingProfile.id !== targetUserId) {
+      await adminClient.from("profiles").delete().eq("id", existingProfile.id);
+    }
+
+    const { error: profileInsertError } = await adminClient.from("profiles").upsert(
+      {
+        id: targetUserId,
+        glm_member_id: glmMemberId,
+        full_name: fullName,
+        email,
+        initials,
+        onboarding_complete: existingProfile?.onboarding_complete ?? false,
+      },
+      { onConflict: "id" }
+    );
+
+    if (profileInsertError) {
+      console.error("[auth/glm] profile upsert error:", profileInsertError.message);
+    }
+  }
+
+  // ── 9. Redirect browser through Supabase verify → /auth/callback ───
   const actionLink = new URL(linkData.properties.action_link);
   actionLink.searchParams.set("redirect_to", callbackUrl);
 
