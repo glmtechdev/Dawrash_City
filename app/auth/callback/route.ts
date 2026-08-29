@@ -69,8 +69,15 @@ export async function GET(request: NextRequest) {
           console.error('[auth/callback] profile upsert error:', upsertError.message)
         }
 
+        // Check profile in Dawrash DB to see if onboarding is completed
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', user.id)
+          .maybeSingle()
+
         // Redirect: new member has no plots chosen yet (onboarding_complete = false)
-        const isNewMember = !meta.onboarding_complete
+        const isNewMember = !profile?.onboarding_complete
         const redirectTo = isNewMember ? '/onboarding/plots' : next
 
         return NextResponse.redirect(`${origin}${redirectTo}`)

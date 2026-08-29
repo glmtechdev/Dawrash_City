@@ -4,6 +4,7 @@ import { ProgressRing } from '@/components/dawrash/progress-ring'
 import { CopyButton } from '@/components/dawrash/copy-button'
 import { PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { getCurrentMemberServer } from '@/lib/member-data'
 import {
@@ -21,6 +22,7 @@ import {
   LandPlot,
   CalendarDays,
   ScrollText,
+  Sparkles,
 } from 'lucide-react'
 
 const milestones = [25, 50, 75, 100]
@@ -106,6 +108,31 @@ export default async function DashboardPage() {
               : 'Pending Covenant'}
         </Badge>
       </div>
+
+      {/* ── Pending Onboarding Banner ── */}
+      {(!member.covenantSignedAt || member.plots === 0) && (
+        <div className="mt-5 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-3xl border border-gold/40 bg-gold/10 p-5 text-foreground shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gold text-gold-foreground">
+              <Sparkles className="size-5" aria-hidden />
+            </span>
+            <div>
+              <h2 className="font-serif text-lg font-bold text-foreground">Complete Your Land Onboarding</h2>
+              <p className="text-sm text-muted-foreground">
+                Select your land plot count and accept the Dawrash Covenant to lock in your reservation.
+              </p>
+            </div>
+          </div>
+          <Button
+            render={<Link href="/onboarding/plots" />}
+            size="lg"
+            className="rounded-full bg-gold px-6 text-sm font-semibold text-gold-foreground hover:bg-gold/90 shrink-0"
+          >
+            Start Onboarding
+            <ArrowRight className="size-4 ml-1" />
+          </Button>
+        </div>
+      )}
 
       {/* ── Savings summary card ── */}
       <section

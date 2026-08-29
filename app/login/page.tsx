@@ -1,11 +1,13 @@
 'use client'
 
-import { Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { AuthShell } from '@/components/dawrash/auth-shell'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { ShieldCheck, CircleAlert, Sparkles, Smartphone } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { createSupabaseBrowserClient } from '@/lib/supabase/client'
+import { ShieldCheck, CircleAlert, Sparkles, Smartphone, ArrowRight } from 'lucide-react'
 
 const glmErrorMessages: Record<string, string> = {
   config: 'SSO is not configured correctly. Please contact support.',
@@ -17,8 +19,19 @@ const glmErrorMessages: Record<string, string> = {
 }
 
 function LoginForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const glmError = searchParams.get('error')
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setIsAuthenticated(true)
+      }
+    })
+  }, [])
 
   return (
     <AuthShell>
@@ -30,6 +43,21 @@ function LoginForm() {
         <p className="mt-2 leading-relaxed text-muted-foreground">
           Dawrash City is accessible exclusively for verified GLM church members through Single Sign-On (SSO).
         </p>
+
+        {isAuthenticated && (
+          <div className="mt-6 rounded-2xl border border-gold/40 bg-gold/10 p-5 text-center">
+            <p className="font-semibold text-foreground">You are already signed in!</p>
+            <p className="mt-1 text-xs text-muted-foreground">You have an active session on this device.</p>
+            <Button
+              render={<Link href="/dashboard" />}
+              size="lg"
+              className="mt-4 w-full rounded-full bg-gold font-semibold text-gold-foreground hover:bg-gold/90"
+            >
+              Continue to Dashboard
+              <ArrowRight className="size-4 ml-1" />
+            </Button>
+          </div>
+        )}
 
         {glmError && (
           <Alert variant="destructive" className="mt-6 rounded-2xl">
@@ -47,11 +75,11 @@ function LoginForm() {
               <Smartphone className="size-5" />
             </span>
             <div>
-              <h2 className="font-semibold text-foreground">How to Sign In</h2>
+              <h2 className="font-semibold text-foreground">How Returning Members Sign In</h2>
               <ol className="mt-2 flex flex-col gap-2 text-sm text-muted-foreground list-decimal pl-4">
-                <li>Open the <strong>GLM Members App</strong> on your phone or computer.</li>
-                <li>Go to your <strong>Profile</strong> screen.</li>
-                <li>Tap the <strong>"Open Dawrash City"</strong> button to launch your dashboard.</li>
+                <li>Open the <strong>GLM Members App</strong> on your phone or browser.</li>
+                <li>Go to your <strong>Profile</strong> tab.</li>
+                <li>Tap <strong>"Open Dawrash City"</strong> — you will be securely logged directly into your dashboard.</li>
               </ol>
             </div>
           </div>
@@ -59,7 +87,7 @@ function LoginForm() {
 
         <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-center text-xs text-gold">
           <Sparkles className="inline-block size-3.5 mr-1" />
-          No password or separate account required — your GLM church membership is your identity.
+          No password required — your verified GLM church membership handles all authentication.
         </div>
       </div>
 
