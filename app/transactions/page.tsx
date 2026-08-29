@@ -4,18 +4,31 @@ import { useState } from 'react'
 import { MemberLayout } from '@/components/dawrash/member-layout'
 import { PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
-import { currentMember, formatNaira, savedKobo, targetKobo, progressPercent, type PaymentStatus } from '@/lib/dawrash-data'
-import { Calendar, Receipt, TrendingUp } from 'lucide-react'
+import {
+  currentMember,
+  formatNaira,
+  savedKobo,
+  targetKobo,
+  progressPercent,
+  type PaymentStatus,
+} from '@/lib/dawrash-data'
+import { Calendar, Receipt } from 'lucide-react'
 
-type Filter = 'all' | 'confirmed' | 'pending' | 'failed'
+type Filter = 'all' | 'confirmed' | 'pending'
 
 const tabs: { value: Filter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'confirmed', label: 'Confirmed' },
   { value: 'pending', label: 'Pending' },
-  { value: 'failed', label: 'Failed' },
 ]
 
 function formatDate(iso: string): string {
@@ -30,7 +43,6 @@ export default function TransactionsPage() {
   const [filter, setFilter] = useState<Filter>('all')
 
   const member = currentMember
-  const saved = savedKobo(member)
   const target = targetKobo(member)
   const percent = progressPercent(member)
 
@@ -59,7 +71,6 @@ export default function TransactionsPage() {
         </p>
       </div>
 
-      {/* Summary strip */}
       <div className="mt-5 grid grid-cols-3 gap-3">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -90,8 +101,7 @@ export default function TransactionsPage() {
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
+      <div className="mt-4 h-4 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-gold transition-all"
           style={{ width: `${percent}%` }}
@@ -102,7 +112,6 @@ export default function TransactionsPage() {
         />
       </div>
 
-      {/* Filter tabs */}
       <div className="mt-6 inline-flex rounded-full border border-border bg-card p-1">
         {tabs.map((t) => {
           const count = all.filter((tx) =>
@@ -138,7 +147,6 @@ export default function TransactionsPage() {
         })}
       </div>
 
-      {/* Transaction list */}
       {list.length === 0 ? (
         <Empty className="mt-6 rounded-3xl border border-border bg-card py-16">
           <EmptyHeader>

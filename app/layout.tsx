@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from 'next'
-import { Playfair_Display, Inter } from 'next/font/google'
+import { Inter, Manrope } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const playfair = Playfair_Display({
+const manrope = Manrope({
   subsets: ['latin'],
-  variable: '--font-playfair',
+  variable: '--font-manrope',
   display: 'swap',
 })
 
@@ -32,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`bg-background ${playfair.variable} ${inter.variable}`}>
+    <html lang="en" className={`bg-background ${manrope.variable} ${inter.variable}`}>
       <body className="font-sans antialiased">
         {children}
         <Toaster position="top-center" />

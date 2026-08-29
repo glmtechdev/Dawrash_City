@@ -93,15 +93,14 @@ export const currentMember: Member = {
   bank: 'Wema Bank',
   status: 'active',
   transactions: [
-    { id: 't1', date: '2026-08-18', amountKobo: 500_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8842' },
-    { id: 't2', date: '2026-07-30', amountKobo: 750_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8611' },
-    { id: 't3', date: '2026-07-02', amountKobo: 420_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8390' },
+    { id: 't1', date: '2026-08-18', amountKobo: 1_000_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8842' },
+    { id: 't2', date: '2026-07-30', amountKobo: 900_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8611' },
+    { id: 't3', date: '2026-07-02', amountKobo: 800_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8390' },
     { id: 't4', date: '2026-06-15', amountKobo: 600_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8144' },
-    { id: 't5', date: '2026-05-28', amountKobo: 300_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7902' },
-    { id: 't6', date: '2026-05-10', amountKobo: 250_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7765' },
+    { id: 't5', date: '2026-05-28', amountKobo: 420_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7902' },
+    { id: 't6', date: '2026-05-10', amountKobo: 300_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7765' },
     { id: 't7', date: '2026-08-25', amountKobo: 200_000 * 100, method: 'Bank Transfer', status: 'pending', reference: 'DWR-8901' },
-    { id: 't8', date: '2026-04-19', amountKobo: 700_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7511' },
-    { id: 't9', date: '2026-03-22', amountKobo: 500_000 * 100, method: 'Card', status: 'failed', reference: 'DWR-7203' },
+    { id: 't8', date: '2026-04-19', amountKobo: 500_000 * 100, method: 'Card', status: 'failed', reference: 'DWR-7203' },
   ],
 }
 

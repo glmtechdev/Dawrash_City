@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AuthShell } from '@/components/dawrash/auth-shell'
@@ -9,34 +9,39 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
+import { checkMembership } from '@/app/actions'
 import { Mail, ArrowRight, CircleCheck, CircleAlert } from 'lucide-react'
 
-// Demo directory of registered church emails.
-const REGISTERED = new Set([
-  'daniel.okafor@glm.org',
-  'grace.adeyemi@glm.org',
-  'emmanuel.bello@glm.org',
-])
-
-type State = 'idle' | 'loading' | 'error' | 'success'
+type State = 'idle' | 'not_member' | 'error' | 'link_sent'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const [isPending, startTransition] = useTransition()
   const [email, setEmail] = useState('')
   const [state, setState] = useState<State>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (state === 'loading') return
-    setState('loading')
-    setTimeout(() => {
-      if (REGISTERED.has(email.trim().toLowerCase())) {
-        setState('success')
-        setTimeout(() => router.push(`/verify?email=${encodeURIComponent(email.trim())}`), 1200)
+    if (isPending) return
+
+    startTransition(async () => {
+      const result = await checkMembership(email)
+
+      if (result.status === 'link_sent') {
+        setState('link_sent')
+        // Small pause so the success state is visible, then navigate
+        setTimeout(
+          () => router.push(`/verify?email=${encodeURIComponent(result.email)}`),
+          900,
+        )
+      } else if (result.status === 'not_member') {
+        setState('not_member')
       } else {
         setState('error')
+        setErrorMessage(result.message)
       }
-    }, 1100)
+    })
   }
 
   return (
@@ -45,22 +50,30 @@ export default function RegisterPage() {
         <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-gold">
           <Mail className="size-6" aria-hidden />
         </span>
-        <h1 className="mt-6 font-serif text-3xl font-bold text-foreground">Verify Your Membership</h1>
+        <h1 className="mt-6 font-serif text-3xl font-bold text-foreground">Check Your Access</h1>
         <p className="mt-2 leading-relaxed text-muted-foreground">
-          Enter your registered church email to check your membership status.
+          Enter your registered church email to continue.
         </p>
 
-        {state === 'error' ? (
+        {state === 'not_member' && (
           <Alert variant="destructive" className="mt-6 rounded-2xl">
             <CircleAlert />
-            <AlertTitle>Not a registered member</AlertTitle>
+            <AlertTitle>Not registered</AlertTitle>
             <AlertDescription>
-              This email is not registered in our system. Please contact your pastor.
+              This email is not in our members list. Contact your pastor to be added.
             </AlertDescription>
           </Alert>
-        ) : null}
+        )}
 
-        {state === 'success' ? (
+        {state === 'error' && (
+          <Alert variant="destructive" className="mt-6 rounded-2xl">
+            <CircleAlert />
+            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
+
+        {state === 'link_sent' && (
           <Alert className="mt-6 rounded-2xl border-transparent bg-success/10 text-success">
             <CircleCheck />
             <AlertTitle className="text-success">Membership verified</AlertTitle>
@@ -68,7 +81,7 @@ export default function RegisterPage() {
               Check your email for your login link. Redirecting you now.
             </AlertDescription>
           </Alert>
-        ) : null}
+        )}
 
         <form onSubmit={handleSubmit} className="mt-6">
           <FieldGroup>
@@ -82,45 +95,46 @@ export default function RegisterPage() {
                   id="email"
                   type="email"
                   required
+                  autoComplete="email"
                   placeholder="you@glm.org"
                   value={email}
                   onChange={(e) => {
                     setEmail(e.target.value)
-                    if (state === 'error') setState('idle')
+                    if (state !== 'idle') setState('idle')
                   }}
-                  disabled={state === 'loading' || state === 'success'}
+                  disabled={isPending || state === 'link_sent'}
                 />
               </InputGroup>
             </Field>
             <Button
               type="submit"
               size="lg"
-              disabled={state === 'loading' || state === 'success'}
+              disabled={isPending || state === 'link_sent'}
               className="h-12 rounded-full bg-gold text-base text-gold-foreground hover:bg-gold/90"
             >
-              {state === 'loading' ? (
+              {isPending ? (
                 <>
                   <Spinner data-icon="inline-start" />
                   Checking membership
                 </>
               ) : (
                 <>
-                  Check My Membership
+                  Check Membership
                   <ArrowRight data-icon="inline-end" />
                 </>
               )}
             </Button>
           </FieldGroup>
         </form>
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account?{' '}
-          <Link href="/login" className="font-semibold text-gold hover:underline">
-            Login
-          </Link>
-        </p>
       </div>
+
       <p className="mt-6 text-center text-sm text-muted-foreground">
+        Already have access?{' '}
+        <Link href="/login" className="font-semibold text-gold hover:underline">
+          Sign in
+        </Link>
+      </p>
+      <p className="mt-2 text-center text-sm text-muted-foreground">
         Not a member?{' '}
         <span className="font-medium text-foreground">Contact your pastor.</span>
       </p>

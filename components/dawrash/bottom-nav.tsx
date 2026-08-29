@@ -7,7 +7,7 @@ import { Home, Receipt, User } from 'lucide-react'
 
 const items = [
   { href: '/dashboard', label: 'Home', icon: Home },
-  { href: '/transactions', label: 'Payments', icon: Receipt },
+  { href: '/transactions', label: 'Transactions', icon: Receipt },
   { href: '/profile', label: 'Profile', icon: User },
 ]
 

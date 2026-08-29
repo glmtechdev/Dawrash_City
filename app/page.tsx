@@ -56,32 +56,31 @@ export default function LandingPage() {
 
           <div className="flex flex-1 flex-col justify-center py-16">
             <p className="mb-5 inline-flex w-fit items-center rounded-full border border-white/25 bg-white/5 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-navy-foreground/80">
-              Members Only Programme
+              Community Land Savings
             </p>
             <h1 className="max-w-3xl text-balance font-serif text-5xl font-bold leading-[1.05] text-navy-foreground sm:text-6xl md:text-7xl">
-              Own Your Land in <span className="text-gold">Dawrash</span>
+              Own Your Place in
+              <span className="mt-2 block text-gold">Dawrash City</span>
             </h1>
             <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-navy-foreground/75">
-              An exclusive land ownership programme for registered members of Gospel Labour Ministry
-              building the Dawrash City vision.
+              A faith community where believers live, grow, and build together.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Button
-                render={<Link href="/login" />}
+                render={<Link href="/register" />}
                 size="lg"
                 className="rounded-full bg-gold px-7 text-base text-gold-foreground hover:bg-gold/90"
               >
-                Member Login
+                Get Started
                 <ArrowRight data-icon="inline-end" />
               </Button>
               <Button
-                render={<Link href="#how-it-works" />}
+                render={<Link href="/login" />}
                 size="lg"
                 variant="outline"
                 className="rounded-full border-white/40 bg-transparent px-7 text-base text-navy-foreground hover:bg-white/10 hover:text-navy-foreground"
               >
-                Learn More
-                <ArrowDown data-icon="inline-end" />
+                Sign In
               </Button>
             </div>
           </div>

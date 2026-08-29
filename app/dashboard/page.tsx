@@ -81,9 +81,8 @@ export default function DashboardPage() {
       {/* Page header */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-muted-foreground">Welcome back</p>
           <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">
-            {member.name.split(' ')[0]}
+            Welcome back, {member.name.split(' ')[0]} 👋
           </h1>
         </div>
         <Badge
@@ -174,7 +173,7 @@ export default function DashboardPage() {
 
         {/* Progress bar */}
         <div className="mt-6">
-          <div className="h-2.5 overflow-hidden rounded-full bg-white/15">
+          <div className="h-4 overflow-hidden rounded-full bg-white/15">
             <div
               className="h-full rounded-full bg-gold transition-all duration-500"
               style={{ width: `${percent}%` }}

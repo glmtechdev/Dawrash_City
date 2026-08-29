@@ -1,36 +1,89 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AuthShell } from '@/components/dawrash/auth-shell'
 import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Spinner } from '@/components/ui/spinner'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
+import { checkMembership } from '@/app/actions'
+import { Mail, ArrowRight, CircleAlert, MailCheck } from 'lucide-react'
 
+/**
+ * Login is passwordless — the member enters their church email,
+ * we validate it through the bridge (same as register), then send
+ * a Supabase OTP magic link.  No password field ever needed.
+ */
 export default function LoginPage() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const [email, setEmail] = useState('')
+  const [state, setState] = useState<'idle' | 'sent' | 'not_member' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (loading) return
-    setLoading(true)
-    setTimeout(() => router.push('/dashboard'), 900)
+    if (isPending) return
+
+    startTransition(async () => {
+      const result = await checkMembership(email)
+
+      if (result.status === 'link_sent') {
+        setState('sent')
+        setTimeout(
+          () => router.push(`/verify?email=${encodeURIComponent(result.email)}`),
+          900,
+        )
+      } else if (result.status === 'not_member') {
+        setState('not_member')
+      } else {
+        setState('error')
+        setErrorMessage(result.message)
+      }
+    })
   }
 
   return (
     <AuthShell>
       <div className="rounded-3xl border border-border bg-card p-8 shadow-sm sm:p-10">
         <span className="flex size-12 items-center justify-center rounded-2xl bg-accent text-gold">
-          <Lock className="size-6" aria-hidden />
+          <MailCheck className="size-6" aria-hidden />
         </span>
         <h1 className="mt-6 font-serif text-3xl font-bold text-foreground">Welcome Back</h1>
         <p className="mt-2 leading-relaxed text-muted-foreground">
-          Sign in to track your land savings and record new payments.
+          Enter your church email and we will send you a secure sign-in link.
         </p>
+
+        {state === 'not_member' && (
+          <Alert variant="destructive" className="mt-6 rounded-2xl">
+            <CircleAlert />
+            <AlertTitle>Access unavailable</AlertTitle>
+            <AlertDescription>
+              This email is not registered. Use the link below to verify your membership first.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {state === 'error' && (
+          <Alert variant="destructive" className="mt-6 rounded-2xl">
+            <CircleAlert />
+            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
+
+        {state === 'sent' && (
+          <Alert className="mt-6 rounded-2xl border-transparent bg-success/10 text-success">
+            <MailCheck className="size-4" />
+            <AlertTitle className="text-success">Link sent</AlertTitle>
+            <AlertDescription className="text-success/80">
+              Check your email and click the sign-in link. Redirecting you now.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit} className="mt-6">
           <FieldGroup>
@@ -44,54 +97,45 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   required
+                  autoComplete="email"
                   placeholder="you@glm.org"
-                  defaultValue="daniel.okafor@glm.org"
-                />
-              </InputGroup>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <InputGroup className="h-12 rounded-2xl">
-                <InputGroupAddon>
-                  <Lock className="size-4 text-muted-foreground" aria-hidden />
-                </InputGroupAddon>
-                <InputGroupInput
-                  id="password"
-                  type="password"
-                  required
-                  placeholder="Enter your password"
-                  defaultValue="password"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    if (state !== 'idle') setState('idle')
+                  }}
+                  disabled={isPending || state === 'sent'}
                 />
               </InputGroup>
             </Field>
             <Button
               type="submit"
               size="lg"
-              disabled={loading}
+              disabled={isPending || state === 'sent'}
               className="h-12 rounded-full bg-gold text-base text-gold-foreground hover:bg-gold/90"
             >
-              {loading ? (
+              {isPending ? (
                 <>
                   <Spinner data-icon="inline-start" />
-                  Signing in
+                  Sending link
                 </>
               ) : (
                 <>
-                  Sign In
+                  Send Sign-in Link
                   <ArrowRight data-icon="inline-end" />
                 </>
               )}
             </Button>
           </FieldGroup>
         </form>
-
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Need to verify first?{' '}
-          <Link href="/register" className="font-semibold text-gold hover:underline">
-            Check your membership
-          </Link>
-        </p>
       </div>
+
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        First time here?{' '}
+        <Link href="/register" className="font-semibold text-gold hover:underline">
+          Verify your membership
+        </Link>
+      </p>
     </AuthShell>
   )
 }

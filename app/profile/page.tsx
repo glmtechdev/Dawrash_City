@@ -126,7 +126,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-muted">
+        <div className="mt-4 h-4 overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-gold transition-all"
             style={{ width: `${percent}%` }}
