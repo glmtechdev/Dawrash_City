@@ -113,10 +113,10 @@ https://dawrashcity.vercel.app/auth/glm?token=<jwt>
 New members landing on `/onboarding/plots` for the first time complete two steps, which persist data directly to Supabase:
 
 ### Step 1 — Plot Selection (`/onboarding/plots`)
-- Member selects 1, 2, or 3 plots (₦2,000,000 per plot)
+- Member selects their desired number of plots (₦2,000,000 per plot) — 1, 2, or more
 - Clicks "Continue" → triggers `savePlotSelection` Server Action
 - Writes `plots` count to member profile row in Dawrash Supabase
-- Target is locked permanently after this step
+- Members can increase their target at any time from the Profile page; they cannot reduce it below what they have already paid
 
 ### Step 2 — Covenant Signing (`/onboarding/covenant`)
 - Member reads the full Dawrash City Land Savings Covenant
@@ -164,6 +164,7 @@ New members landing on `/onboarding/plots` for the first time complete two steps
 - Plot target badge
 - Member since date & covenant signed timestamp
 - Savings snapshot (saved / target / progress %)
+- **Update Target** button — allows active members to increase their plot count; cannot reduce below confirmed-paid plots; hidden for completed members
 - Sign out button
 
 ---
@@ -200,7 +201,7 @@ New members landing on `/onboarding/plots` for the first time complete two steps
 | email | text | unique |
 | initials | text | derived from full_name |
 | glm_member_id | uuid | links back to GLM Members DB |
-| plots | smallint | 1–3, set during onboarding |
+| plots | smallint | 1 or more; set during onboarding, can be increased from Profile |
 | nuban | text | payment account, set by admin |
 | bank | text | default Wema Bank |
 | status | enum | pending_covenant / active / completed |

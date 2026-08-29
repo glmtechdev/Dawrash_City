@@ -55,6 +55,11 @@ export const PLOT_OPTIONS = [
     tagline: 'Legacy investment',
     description: 'Build for the generations who will call Dawrash home.',
   },
+  {
+    count: 4,
+    tagline: 'Expand your vision',
+    description: 'A larger stake in the community you are helping to build.',
+  },
 ] as const
 
 export const COVENANT_TEXT = `DAWRASH CITY LAND SAVINGS COVENANT - Version 1.0

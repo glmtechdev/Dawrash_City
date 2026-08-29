@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { PRICE_PER_PLOT_KOBO } from '@/lib/dawrash-data'
 
 export type ActionResult =
   | { success: true }
@@ -68,7 +69,6 @@ export async function updateTarget(plots: number): Promise<ActionResult> {
   }
 
   // Prevent lowering plots below what has already been fully confirmed
-  const PRICE_PER_PLOT_KOBO = 2_000_000 * 100
   const { data: txRows } = await supabase
     .from('transactions')
     .select('amount_kobo, status')
