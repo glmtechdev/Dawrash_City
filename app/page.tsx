@@ -55,7 +55,7 @@ export default function LandingPage() {
       </div>
 
       {/* Screen Frame Container */}
-      <div className="relative z-10 mx-auto flex h-[100svh] max-w-6xl flex-col justify-between px-5 pt-5 pb-5 sm:px-8 sm:pt-7 sm:pb-7">
+      <div className="relative z-10 mx-auto flex h-[100svh] max-w-6xl flex-col justify-between px-5 pt-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:px-8 sm:pt-7 sm:pb-7">
         {/* Top Header */}
         <header className="flex shrink-0 items-center justify-between">
           <Brand tone="light" subtitle />
@@ -231,7 +231,7 @@ export default function LandingPage() {
                 type="button"
                 onClick={() => setActiveTab('hero')}
                 className={cn(
-                  'rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-200',
+                  'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
                   activeTab === 'hero'
                     ? 'bg-gold text-gold-foreground font-semibold shadow-sm'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
@@ -243,25 +243,27 @@ export default function LandingPage() {
                 type="button"
                 onClick={() => setActiveTab('allocation')}
                 className={cn(
-                  'rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-200',
+                  'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
                   activeTab === 'allocation'
                     ? 'bg-gold text-gold-foreground font-semibold shadow-sm'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
                 )}
               >
-                Land Allocation
+                <span className="sm:hidden">Allocation</span>
+                <span className="hidden sm:inline">Land Allocation</span>
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('covenant')}
                 className={cn(
-                  'rounded-full px-3.5 py-1.5 text-xs font-medium transition-all duration-200',
+                  'rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200',
                   activeTab === 'covenant'
                     ? 'bg-gold text-gold-foreground font-semibold shadow-sm'
                     : 'text-white/70 hover:text-white hover:bg-white/10'
                 )}
               >
-                Covenant Steps
+                <span className="sm:hidden">Covenant</span>
+                <span className="hidden sm:inline">Covenant Steps</span>
               </button>
             </nav>
           </div>
