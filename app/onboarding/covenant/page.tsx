@@ -43,29 +43,31 @@ export default function CovenantPage() {
         </h1>
         <div className="mt-4 h-1 w-24 rounded-full bg-gold" aria-hidden />
 
-        <ScrollArea className="mt-6 h-80 rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <div className="flex flex-col gap-4 pr-3">
-            {paragraphs.map((p, i) => {
-              const [firstLine, ...rest] = p.split('\n')
-              const isHeading = i === 0
-              if (isHeading) {
+        <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <ScrollArea className="h-72 p-5">
+            <div className="flex flex-col gap-4 pr-3">
+              {paragraphs.map((p, i) => {
+                const [firstLine, ...rest] = p.split('\n')
+                const isHeading = i === 0
+                if (isHeading) {
+                  return (
+                    <p key={i} className="font-serif text-lg font-bold text-foreground">
+                      {p}
+                    </p>
+                  )
+                }
                 return (
-                  <p key={i} className="font-serif text-lg font-bold text-foreground">
-                    {p}
-                  </p>
+                  <div key={i}>
+                    <p className="font-semibold text-foreground">{firstLine}</p>
+                    {rest.length ? (
+                      <p className="mt-1 leading-relaxed text-muted-foreground">{rest.join(' ')}</p>
+                    ) : null}
+                  </div>
                 )
-              }
-              return (
-                <div key={i}>
-                  <p className="font-semibold text-foreground">{firstLine}</p>
-                  {rest.length ? (
-                    <p className="mt-1 leading-relaxed text-muted-foreground">{rest.join(' ')}</p>
-                  ) : null}
-                </div>
-              )
-            })}
-          </div>
-        </ScrollArea>
+              })}
+            </div>
+          </ScrollArea>
+        </div>
 
         <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-card p-4">
           <Checkbox

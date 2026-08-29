@@ -113,13 +113,13 @@ export default async function ProfilePage() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Saved
             </p>
-            <p className="mt-1 font-serif text-lg font-bold text-success">{formatNaira(saved)}</p>
+            <p className="mt-1 font-serif text-sm font-bold text-success break-all">{formatNaira(saved)}</p>
           </div>
           <div className="rounded-2xl bg-muted/50 p-4">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Target
             </p>
-            <p className="mt-1 font-serif text-lg font-bold text-foreground">
+            <p className="mt-1 font-serif text-sm font-bold text-foreground break-all">
               {formatNaira(target)}
             </p>
           </div>
@@ -127,7 +127,7 @@ export default async function ProfilePage() {
             <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Progress
             </p>
-            <p className="mt-1 font-serif text-lg font-bold text-gold">{percent}%</p>
+            <p className="mt-1 font-serif text-sm font-bold text-gold">{percent}%</p>
           </div>
         </div>
 

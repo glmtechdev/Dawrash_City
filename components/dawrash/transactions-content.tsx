@@ -74,7 +74,7 @@ export function TransactionsContent({ member }: { member: Member }) {
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Total Saved
           </p>
-          <p className="mt-1 font-serif text-lg font-bold text-success">
+          <p className="mt-1 font-serif text-sm font-bold text-success break-all">
             {formatNaira(confirmedTotal)}
           </p>
         </div>
@@ -82,7 +82,7 @@ export function TransactionsContent({ member }: { member: Member }) {
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Pending
           </p>
-          <p className="mt-1 font-serif text-lg font-bold text-warning">
+          <p className="mt-1 font-serif text-sm font-bold text-warning break-all">
             {pendingTotal > 0 ? formatNaira(pendingTotal) : '—'}
           </p>
         </div>
@@ -90,11 +90,11 @@ export function TransactionsContent({ member }: { member: Member }) {
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Progress
           </p>
-          <p className="mt-1 font-serif text-lg font-bold text-foreground">
-            <span className="text-gold">{percent}%</span>
-            <span className="ml-1 text-xs font-normal text-muted-foreground">
-              of {formatNaira(target)}
-            </span>
+          <p className="mt-1 font-serif text-sm font-bold text-gold">
+            {percent}%
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            of {formatNaira(target)}
           </p>
         </div>
       </div>
