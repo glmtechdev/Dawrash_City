@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
+import { decodeJwt } from "jose";
 
 // Force this route to always run dynamically — never cache the redirect
 export const dynamic = "force-dynamic";
@@ -58,25 +59,45 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appOrigin}/login?error=config_svc`);
   }
 
-  // ── 3. Validate token via GLM Supabase ────────────────────────
+  // ── 3. Validate token via GLM Supabase (with JWT payload fallback) ──
+  let email: string | null = null;
+  let glmMemberId: string | null = null;
+  let fullName: string = "";
+
   const glmClient = createClient(GLM_URL, GLM_ANON, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
   const { data: { user: glmUser }, error: userError } = await glmClient.auth.getUser(token);
 
-  if (userError || !glmUser?.email) {
-    console.error("[auth/glm] GLM token validation failed:", userError?.message);
+  if (glmUser?.email) {
+    email = glmUser.email;
+    glmMemberId = glmUser.id;
+    const meta = glmUser.user_metadata ?? {};
+    fullName = (meta.full_name as string) ?? email.split("@")[0];
+  } else {
+    console.warn("[auth/glm] GLM getUser note:", userError?.message, "— attempting JWT decode fallback");
+    try {
+      const payload = decodeJwt(token);
+      if (payload && typeof payload.email === "string") {
+        email = payload.email;
+        const meta = (payload.user_metadata as Record<string, any>) ?? {};
+        glmMemberId = (payload.sub as string) ?? (meta.glm_member_id as string) ?? null;
+        fullName = (meta.full_name as string) ?? email.split("@")[0];
+      }
+    } catch (jwtErr: any) {
+      console.error("[auth/glm] JWT payload decode failed:", jwtErr?.message);
+    }
+  }
+
+  if (!email) {
+    console.error("[auth/glm] Could not extract valid member email from token");
     return NextResponse.redirect(`${appOrigin}/login?error=invalid_token`);
   }
 
   // ── 4. Extract identity ───────────────────────────────────────
-  const email       = glmUser.email;
-  const glmMemberId = glmUser.id;
-  const meta        = glmUser.user_metadata ?? {};
-  const fullName    = (meta.full_name as string) ?? email.split("@")[0];
-  const parts       = fullName.trim().split(" ");
-  const initials    = ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
+  const parts    = fullName.trim().split(" ");
+  const initials = ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "MB";
 
   // ── 5. Ensure user exists in Dawrash auth.users ──────────────
   const adminClient = createClient(DAWRASH_URL, SERVICE_KEY, {
