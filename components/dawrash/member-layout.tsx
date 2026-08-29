@@ -6,7 +6,7 @@ import { Bell } from 'lucide-react'
 
 export function MemberLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100svh] bg-background pb-24 md:pb-0">
+    <div className="min-h-[100svh] bg-background pb-28 md:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3.5">
           <MemberDesktopBrand />
