@@ -23,7 +23,7 @@ export function Brand({
         </p>
         {subtitle ? (
           <p className={cn('text-[11px] font-medium uppercase tracking-[0.18em]', subColor)}>
-            Community Land Savings
+            Build By Faith
           </p>
         ) : null}
       </div>

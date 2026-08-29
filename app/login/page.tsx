@@ -97,15 +97,10 @@ function LoginForm() {
           href="https://members-dbase.vercel.app"
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-gold hover:underline"
+          className="font-semibold text-[#e53e3e] hover:underline"
         >
           Open GLM Members App
         </a>
-      </p>
-
-      <p className="mt-3 text-center text-sm text-muted-foreground">
-        Need assistance with your church membership?{' '}
-        <span className="font-semibold text-foreground">Contact your pastor.</span>
       </p>
     </AuthShell>
   )
