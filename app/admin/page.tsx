@@ -1,23 +1,31 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { fetchAdminMembers } from '@/app/admin/actions'
+import { AdminClient } from '@/app/admin/admin-client'
 
-import { useState } from 'react'
-import { AdminShell, type AdminSection } from '@/components/dawrash/admin-shell'
-import {
-  OverviewSection,
-  MembersSection,
-  CertificatesSection,
-  AuditSection,
-} from '@/components/dawrash/admin-sections'
+/**
+ * Admin page — server component.
+ * Middleware already blocks non-admins, but we double-check here for safety
+ * before fetching all member data with the service-role client.
+ */
+export default async function AdminPage() {
+  const supabase = await createSupabaseServerClient()
 
-export default function AdminPage() {
-  const [section, setSection] = useState<AdminSection>('overview')
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  return (
-    <AdminShell section={section} onSection={setSection}>
-      {section === 'overview' ? <OverviewSection /> : null}
-      {section === 'members' ? <MembersSection /> : null}
-      {section === 'audit' ? <AuditSection /> : null}
-      {section === 'certificates' ? <CertificatesSection /> : null}
-    </AdminShell>
-  )
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (!profile?.is_admin) redirect('/dashboard')
+
+  const members = await fetchAdminMembers()
+
+  return <AdminClient members={members} />
 }

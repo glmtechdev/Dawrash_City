@@ -3,16 +3,21 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Home, Receipt, User } from 'lucide-react'
+import { Home, Receipt, User, ShieldCheck } from 'lucide-react'
 
-const items = [
+const baseItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/transactions', label: 'Transactions', icon: Receipt },
   { href: '/profile', label: 'Profile', icon: User },
 ]
 
-export function BottomNav() {
+export function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname()
+
+  const items = isAdmin
+    ? [...baseItems, { href: '/admin', label: 'Admin', icon: ShieldCheck }]
+    : baseItems
+
   return (
     <nav
       aria-label="Primary"
@@ -20,7 +25,7 @@ export function BottomNav() {
     >
       <ul className="mx-auto flex max-w-md items-stretch justify-around px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
         {items.map((item) => {
-          const active = pathname === item.href
+          const active = pathname === item.href || (item.href === '/admin' && pathname.startsWith('/admin'))
           const Icon = item.icon
           return (
             <li key={item.href} className="flex-1">

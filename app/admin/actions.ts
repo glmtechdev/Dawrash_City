@@ -1,0 +1,111 @@
+'use server'
+
+import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import {
+  type Member,
+  type MemberStatus,
+  type Transaction,
+} from '@/lib/dawrash-data'
+
+/* ------------------------------------------------------------------ */
+/*  Types returned to admin sections                                    */
+/* ------------------------------------------------------------------ */
+
+export type AdminMember = Member
+
+export type AdminOverviewData = {
+  members: AdminMember[]
+}
+
+/* ------------------------------------------------------------------ */
+/*  Internal helpers                                                    */
+/* ------------------------------------------------------------------ */
+
+function deriveStatus(profile: {
+  status?: string | null
+  covenant_signed_at?: string | null
+  onboarding_complete?: boolean | null
+}): MemberStatus {
+  if (profile.status === 'completed') return 'completed'
+  if (profile.status === 'active') return 'active'
+  if (profile.status === 'pending_covenant') return 'pending_covenant'
+  // Derive from fields if status column not yet set
+  if (!profile.covenant_signed_at) return 'pending_covenant'
+  return 'active'
+}
+
+function mapTransactions(rawTx: Record<string, unknown>[]): Transaction[] {
+  return rawTx.map((t) => ({
+    id: String(t.id ?? ''),
+    date: String(t.paid_at ?? t.created_at ?? new Date().toISOString()),
+    amountKobo: Number(t.amount_kobo ?? 0),
+    method: String(t.method ?? 'Bank Transfer'),
+    status: (t.status as Transaction['status']) ?? 'confirmed',
+    reference: String(t.reference ?? `DWR-${String(t.id).slice(0, 6)}`),
+  }))
+}
+
+/* ------------------------------------------------------------------ */
+/*  fetchAdminMembers                                                   */
+/*  Returns every profile with their full transaction history.          */
+/* ------------------------------------------------------------------ */
+
+export async function fetchAdminMembers(): Promise<AdminMember[]> {
+  const supabase = createSupabaseAdminClient()
+
+  // Fetch all profiles (service role bypasses RLS)
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: true })
+
+  if (profilesError) {
+    console.error('[admin/actions] fetchAdminMembers profiles error:', profilesError.message)
+    return []
+  }
+
+  if (!profiles || profiles.length === 0) return []
+
+  // Fetch all transactions in one query
+  const { data: allTx, error: txError } = await supabase
+    .from('transactions')
+    .select('*')
+    .order('paid_at', { ascending: false })
+
+  if (txError) {
+    console.error('[admin/actions] fetchAdminMembers transactions error:', txError.message)
+  }
+
+  const txByMember = new Map<string, Record<string, unknown>[]>()
+  for (const tx of allTx ?? []) {
+    const memberId = String(tx.member_id ?? '')
+    if (!txByMember.has(memberId)) txByMember.set(memberId, [])
+    txByMember.get(memberId)!.push(tx as Record<string, unknown>)
+  }
+
+  return profiles.map((p) => {
+    const rawTx = txByMember.get(p.id) ?? []
+    const transactions = mapTransactions(rawTx)
+
+    const fullName: string = p.full_name || p.email?.split('@')[0] || 'Member'
+    const parts = fullName.trim().split(' ')
+    const initials =
+      p.initials ||
+      ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() ||
+      'MB'
+
+    return {
+      id: p.id,
+      name: fullName,
+      email: p.email || '',
+      initials,
+      plots: Number(p.plots ?? 0),
+      memberSince: p.created_at || p.member_since || new Date().toISOString(),
+      covenantSignedAt: p.covenant_signed_at || null,
+      nuban: p.nuban || '—',
+      bank: p.bank || '—',
+      status: deriveStatus(p),
+      transactions,
+    } satisfies AdminMember
+  })
+}

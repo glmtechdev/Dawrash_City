@@ -42,13 +42,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import {
-  members,
-  auditFlags as seedFlags,
   formatNaira,
   plotLabel,
   savedKobo,
   targetKobo,
-  statusLabel,
   type Member,
   type MemberStatus,
   PRICE_PER_PLOT_KOBO,
@@ -85,8 +82,6 @@ function percent(a: number, b: number) {
   return Math.min(100, Math.round((a / b) * 100))
 }
 
-/** Delays rendering until the component is mounted in the browser,
- *  preventing SSR/hydration issues with DOM-measurement libraries. */
 function useIsClient() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
@@ -97,7 +92,7 @@ function useIsClient() {
 /*  Overview                                                            */
 /* ------------------------------------------------------------------ */
 
-export function OverviewSection() {
+export function OverviewSection({ members }: { members: Member[] }) {
   const isClient = useIsClient()
   const totalMembers = members.length
   const totalCollected = members.reduce((sum, m) => sum + savedKobo(m), 0)
@@ -109,14 +104,11 @@ export function OverviewSection() {
     completed: 0,
     pending_covenant: 0,
   }
-  members.forEach((m) => {
-    byStatus[m.status] += 1
-  })
+  members.forEach((m) => { byStatus[m.status] += 1 })
 
-  /* Chart data: one bar per member showing their progress */
   const chartData = members.map((m) => ({
     name: m.name.split(' ')[0],
-    paid: Math.round(savedKobo(m) / 100_000) / 10, // in millions (1 dp)
+    paid: Math.round(savedKobo(m) / 100_000) / 10,
     target: Math.round(targetKobo(m) / 100_000) / 10,
   }))
 
@@ -156,7 +148,6 @@ export function OverviewSection() {
         </p>
       </div>
 
-      {/* Stat cards */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => {
           const Icon = s.icon
@@ -176,21 +167,15 @@ export function OverviewSection() {
         })}
       </div>
 
-      {/* Overall progress + status breakdown */}
       <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_auto]">
-        {/* Status bars */}
         <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
           <h2 className="font-serif text-lg font-bold text-foreground">Members by Status</h2>
           <div className="mt-5 flex flex-col gap-4">
             {(
               [
-                { key: 'active' as MemberStatus, label: 'Active', cls: 'bg-gold' },
-                { key: 'completed' as MemberStatus, label: 'Completed', cls: 'bg-success' },
-                {
-                  key: 'pending_covenant' as MemberStatus,
-                  label: 'Pending Covenant',
-                  cls: 'bg-warning',
-                },
+                { key: 'active' as MemberStatus,           label: 'Active',           cls: 'bg-gold' },
+                { key: 'completed' as MemberStatus,        label: 'Completed',        cls: 'bg-success' },
+                { key: 'pending_covenant' as MemberStatus, label: 'Pending Covenant', cls: 'bg-warning' },
               ] as const
             ).map((b) => (
               <div key={b.key}>
@@ -198,24 +183,19 @@ export function OverviewSection() {
                   <span className="font-medium text-foreground">{b.label}</span>
                   <span className="text-muted-foreground">
                     {byStatus[b.key]}{' '}
-                    <span className="text-xs">
-                      ({percent(byStatus[b.key], totalMembers)}%)
-                    </span>
+                    <span className="text-xs">({percent(byStatus[b.key], totalMembers)}%)</span>
                   </span>
                 </div>
                 <div className="h-3 overflow-hidden rounded-full bg-muted">
                   <div
                     className={cn('h-full rounded-full transition-all', b.cls)}
-                    style={{
-                      width: `${percent(byStatus[b.key], totalMembers)}%`,
-                    }}
+                    style={{ width: `${percent(byStatus[b.key], totalMembers)}%` }}
                   />
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Savings progress bar */}
           <Separator className="my-5" />
           <div>
             <div className="mb-1.5 flex items-center justify-between text-sm">
@@ -223,10 +203,7 @@ export function OverviewSection() {
               <span className="font-semibold text-gold">{overall}%</span>
             </div>
             <div className="h-3 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-gold transition-all"
-                style={{ width: `${overall}%` }}
-              />
+              <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${overall}%` }} />
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
               {formatNaira(totalCollected)} raised of {formatNaira(totalTarget)}
@@ -234,7 +211,6 @@ export function OverviewSection() {
           </div>
         </div>
 
-        {/* Overall progress ring */}
         <div className="flex flex-col items-center justify-center rounded-3xl bg-secondary p-6 text-secondary-foreground shadow-sm lg:w-48">
           <ProgressRing
             percent={overall}
@@ -245,13 +221,10 @@ export function OverviewSection() {
           >
             <span className="font-serif text-2xl font-bold text-gold">{overall}%</span>
           </ProgressRing>
-          <p className="mt-3 text-center text-sm text-secondary-foreground/70">
-            Overall Progress
-          </p>
+          <p className="mt-3 text-center text-sm text-secondary-foreground/70">Overall Progress</p>
         </div>
       </div>
 
-      {/* Bar chart: individual member savings */}
       <div className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-sm">
         <h2 className="font-serif text-lg font-bold text-foreground">Savings by Member</h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -265,11 +238,7 @@ export function OverviewSection() {
                 barGap={4}
                 margin={{ top: 4, right: 4, left: -16, bottom: 0 }}
               >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                  vertical={false}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis
                   dataKey="name"
                   tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
@@ -325,7 +294,7 @@ export function OverviewSection() {
 /*  Members                                                             */
 /* ------------------------------------------------------------------ */
 
-export function MembersSection() {
+export function MembersSection({ members }: { members: Member[] }) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | MemberStatus>('all')
   const [selected, setSelected] = useState<Member | null>(null)
@@ -337,22 +306,18 @@ export function MembersSection() {
         m.name.toLowerCase().includes(q) ||
         m.email.toLowerCase().includes(q) ||
         m.nuban.includes(q)
-      const matchesStatus =
-        statusFilter === 'all' || m.status === statusFilter
+      const matchesStatus = statusFilter === 'all' || m.status === statusFilter
       return matchesQuery && matchesStatus
     })
-  }, [query, statusFilter])
+  }, [query, statusFilter, members])
 
   return (
     <div>
       <div>
         <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">Members</h1>
-        <p className="mt-1 text-muted-foreground">
-          Search and review every registered saver.
-        </p>
+        <p className="mt-1 text-muted-foreground">Search and review every registered saver.</p>
       </div>
 
-      {/* Search + filter */}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search
@@ -384,15 +349,12 @@ export function MembersSection() {
         </Select>
       </div>
 
-      {/* Summary line */}
       <p className="mt-3 text-sm text-muted-foreground">
         Showing <strong className="font-semibold text-foreground">{filtered.length}</strong> of{' '}
         {members.length} members
       </p>
 
-      {/* Table */}
       <div className="mt-3 overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-        {/* Desktop header */}
         <div className="hidden grid-cols-[2fr_0.5fr_1fr_1fr_1fr_0.5fr] items-center gap-4 border-b border-border px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
           <span>Member</span>
           <span>Plots</span>
@@ -420,7 +382,6 @@ export function MembersSection() {
                     onClick={() => setSelected(m)}
                     className="group grid w-full grid-cols-2 items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/40 lg:grid-cols-[2fr_0.5fr_1fr_1fr_1fr_0.5fr]"
                   >
-                    {/* Member */}
                     <div className="col-span-2 flex items-center gap-3 lg:col-span-1">
                       <Avatar className="size-9 shrink-0">
                         <AvatarFallback className="bg-accent text-sm font-bold text-gold">
@@ -432,30 +393,17 @@ export function MembersSection() {
                         <p className="truncate text-sm text-muted-foreground">{m.email}</p>
                       </div>
                     </div>
-
-                    {/* Plots */}
                     <span className="text-sm font-medium text-foreground">{m.plots}</span>
-
-                    {/* Paid */}
                     <div>
                       <p className="font-semibold text-success">{formatNaira(paid)}</p>
                       <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-gold"
-                          style={{ width: `${pct}%` }}
-                        />
+                        <div className="h-full rounded-full bg-gold" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
-
-                    {/* Remaining */}
                     <span className="text-sm text-foreground">{formatNaira(remaining)}</span>
-
-                    {/* Status */}
                     <span className="col-span-2 lg:col-span-1">
                       <MemberBadge status={m.status} />
                     </span>
-
-                    {/* Arrow */}
                     <ChevronRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                 </li>
@@ -474,13 +422,7 @@ export function MembersSection() {
 /*  Member Detail Drawer                                                */
 /* ------------------------------------------------------------------ */
 
-function MemberDrawer({
-  member,
-  onClose,
-}: {
-  member: Member | null
-  onClose: () => void
-}) {
+function MemberDrawer({ member, onClose }: { member: Member | null; onClose: () => void }) {
   const paid = member ? savedKobo(member) : 0
   const tgt = member ? targetKobo(member) : 0
   const remaining = Math.max(0, tgt - paid)
@@ -521,7 +463,6 @@ function MemberDrawer({
             </SheetHeader>
 
             <div className="flex flex-1 flex-col gap-5 pb-8">
-              {/* Progress */}
               <div className="rounded-2xl bg-secondary p-5 text-secondary-foreground">
                 <div className="flex items-center justify-between">
                   <div>
@@ -541,10 +482,7 @@ function MemberDrawer({
                   </ProgressRing>
                 </div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
-                  <div
-                    className="h-full rounded-full bg-gold"
-                    style={{ width: `${pct}%` }}
-                  />
+                  <div className="h-full rounded-full bg-gold" style={{ width: `${pct}%` }} />
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
                   <div>
@@ -562,7 +500,6 @@ function MemberDrawer({
                 </div>
               </div>
 
-              {/* Member details */}
               <dl className="flex flex-col gap-3 rounded-2xl border border-border p-4 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">NUBAN</dt>
@@ -591,9 +528,7 @@ function MemberDrawer({
                     <CalendarDays className="size-3.5" aria-hidden />
                     Member since
                   </dt>
-                  <dd className="font-medium text-foreground">
-                    {formatDate(member.memberSince)}
-                  </dd>
+                  <dd className="font-medium text-foreground">{formatDate(member.memberSince)}</dd>
                 </div>
                 <Separator />
                 <div className="flex justify-between">
@@ -603,9 +538,7 @@ function MemberDrawer({
                   </dt>
                   <dd className="font-medium text-foreground">
                     {member.covenantSignedAt ? (
-                      <span className="text-success">
-                        Signed {formatDate(member.covenantSignedAt)}
-                      </span>
+                      <span className="text-success">Signed {formatDate(member.covenantSignedAt)}</span>
                     ) : (
                       <span className="text-warning">Not signed</span>
                     )}
@@ -613,7 +546,6 @@ function MemberDrawer({
                 </div>
               </dl>
 
-              {/* Transaction history */}
               <div>
                 <h3 className="font-serif text-base font-bold text-foreground">
                   Transaction History
@@ -669,7 +601,7 @@ function MemberDrawer({
 /*  Certificate Queue                                                   */
 /* ------------------------------------------------------------------ */
 
-export function CertificatesSection() {
+export function CertificatesSection({ members }: { members: Member[] }) {
   const completed = members.filter((m) => m.status === 'completed')
   const [issued, setIssued] = useState<Set<string>>(new Set())
 
@@ -772,10 +704,30 @@ export function CertificatesSection() {
 /*  Audit Flags                                                         */
 /* ------------------------------------------------------------------ */
 
+// Audit flags are still static in v1 — will be driven by payment webhooks in v2.
+const auditFlags = [
+  {
+    id: 'af1',
+    member: 'Samuel Ogunleye',
+    reference: 'DWR-8750',
+    expectedKobo: 1_200_000 * 100,
+    recordedKobo: 1_150_000 * 100,
+    note: 'Transfer amount lower than logged pledge.',
+  },
+  {
+    id: 'af2',
+    member: 'Emmanuel Bello',
+    reference: 'DWR-8500',
+    expectedKobo: 500_000 * 100,
+    recordedKobo: 520_000 * 100,
+    note: 'Duplicate inflow detected against single reference.',
+  },
+]
+
 export function AuditSection() {
   const [resolved, setResolved] = useState<Set<string>>(new Set())
-  const open = seedFlags.filter((f) => !resolved.has(f.id))
-  const resolvedList = seedFlags.filter((f) => resolved.has(f.id))
+  const open = auditFlags.filter((f) => !resolved.has(f.id))
+  const resolvedList = auditFlags.filter((f) => resolved.has(f.id))
 
   function resolve(id: string, memberName: string) {
     setResolved((prev) => new Set(prev).add(id))
@@ -829,10 +781,7 @@ export function AuditSection() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <p className="font-semibold text-foreground">{f.member}</p>
-                        <Badge
-                          variant="outline"
-                          className="rounded-full text-xs text-muted-foreground"
-                        >
+                        <Badge variant="outline" className="rounded-full text-xs text-muted-foreground">
                           {f.reference}
                         </Badge>
                       </div>
@@ -840,26 +789,16 @@ export function AuditSection() {
                       <div className="mt-2 flex flex-wrap gap-4 text-sm">
                         <span>
                           <span className="text-muted-foreground">Expected: </span>
-                          <span className="font-semibold text-foreground">
-                            {formatNaira(f.expectedKobo)}
-                          </span>
+                          <span className="font-semibold text-foreground">{formatNaira(f.expectedKobo)}</span>
                         </span>
                         <span>
                           <span className="text-muted-foreground">Recorded: </span>
-                          <span className="font-semibold text-foreground">
-                            {formatNaira(f.recordedKobo)}
-                          </span>
+                          <span className="font-semibold text-foreground">{formatNaira(f.recordedKobo)}</span>
                         </span>
                         <span>
                           <span className="text-muted-foreground">Variance: </span>
-                          <span
-                            className={cn(
-                              'font-bold',
-                              isOver ? 'text-warning' : 'text-destructive',
-                            )}
-                          >
-                            {isOver ? '+' : ''}
-                            {formatNaira(variance)}
+                          <span className={cn('font-bold', isOver ? 'text-warning' : 'text-destructive')}>
+                            {isOver ? '+' : ''}{formatNaira(variance)}
                           </span>
                         </span>
                       </div>
@@ -892,10 +831,7 @@ export function AuditSection() {
               >
                 <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
                 <span className="text-sm font-medium text-foreground">{f.member}</span>
-                <Badge
-                  variant="outline"
-                  className="rounded-full text-xs text-muted-foreground"
-                >
+                <Badge variant="outline" className="rounded-full text-xs text-muted-foreground">
                   {f.reference}
                 </Badge>
                 <span className="ml-auto text-xs text-muted-foreground">Resolved</span>
