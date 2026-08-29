@@ -53,9 +53,15 @@ export async function GET(request: NextRequest) {
           (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')
         ).toUpperCase()
 
-        // Upsert profile — safe to call on every login.
-        // glm_member_id links this Dawrash user back to the GLM Members DB
-        // without sharing any credentials or direct DB access.
+        // Read the existing profile first so we never overwrite onboarding state
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        // Only upsert the identity fields — never touch onboarding_complete so we
+        // don't clobber the value written by /auth/glm or the acceptCovenant action.
         const { error: upsertError } = await supabase
           .from('profiles')
           .upsert(
@@ -65,28 +71,18 @@ export async function GET(request: NextRequest) {
               full_name: fullName,
               initials,
               glm_member_id: glmMemberId,
+              // Preserve the existing onboarding flag; default false only for brand-new rows
+              onboarding_complete: existingProfile?.onboarding_complete ?? false,
             },
-            {
-              // Only set these fields on first insert;
-              // don't overwrite edits the member or admin made later.
-              ignoreDuplicates: false,
-              onConflict: 'id',
-            },
+            { onConflict: 'id' },
           )
 
         if (upsertError) {
           console.error('[auth/callback] profile upsert error:', upsertError.message)
         }
 
-        // Check profile in Dawrash DB to see if onboarding is completed
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('onboarding_complete')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        // Redirect: new member has no plots chosen yet (onboarding_complete = false)
-        const isNewMember = !profile?.onboarding_complete
+        // Redirect: new member hasn't completed onboarding yet
+        const isNewMember = !existingProfile?.onboarding_complete
         const redirectTo = isNewMember ? '/onboarding/plots' : next
 
         return NextResponse.redirect(`${appOrigin}${redirectTo}`)
