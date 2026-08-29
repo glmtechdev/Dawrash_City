@@ -7,7 +7,7 @@ import { AuthShell } from '@/components/dawrash/auth-shell'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
-import { ShieldCheck, CircleAlert, Sparkles, Smartphone, ArrowRight } from 'lucide-react'
+import { ShieldCheck, CircleAlert, Smartphone, ArrowRight } from 'lucide-react'
 
 const glmErrorMessages: Record<string, string> = {
   config: 'SSO is not configured correctly. Please contact support.',
@@ -85,22 +85,22 @@ function LoginForm() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-center text-xs text-gold">
-          <Sparkles className="inline-block size-3.5 mr-1" />
-          No password required. Your verified GLM church membership handles all authentication.
+        <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-center text-sm text-muted-foreground">
+          Already a GLM member?{' '}
+          <a
+            href="https://members-dbase.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-[#e53e3e] hover:underline"
+          >
+            Open GLM Members App
+          </a>
         </div>
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Already a GLM member?{' '}
-        <a
-          href="https://members-dbase.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-semibold text-[#e53e3e] hover:underline"
-        >
-          Open GLM Members App
-        </a>
+        Not yet a member?{' '}
+        <span className="font-semibold text-foreground">Speak to your pastor to get registered.</span>
       </p>
     </AuthShell>
   )
