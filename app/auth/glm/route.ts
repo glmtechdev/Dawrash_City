@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   // expired, we get back the user's identity. No shared secret needed.
   if (!GLM_ANON) {
     console.error("[auth/glm] MEMBERS_BRIDGE_ANON_KEY is not set");
-    return NextResponse.redirect(`${origin}/login?error=config`);
+    return NextResponse.redirect(`${origin}/login?error=config_anon`);
   }
 
   const glmClient = createClient(GLM_URL, GLM_ANON!, {
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
   // ── 4. Upsert profile in Dawrash DB ───────────────────────────
   if (!SERVICE_KEY) {
     console.error("[auth/glm] SUPABASE_SERVICE_ROLE_KEY is not set");
-    return NextResponse.redirect(`${origin}/login?error=config`);
+    return NextResponse.redirect(`${origin}/login?error=config_svc`);
   }
 
   const adminClient = createClient(DAWRASH_URL!, SERVICE_KEY!, {
