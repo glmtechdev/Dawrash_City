@@ -7,11 +7,11 @@ export type ActionResult =
   | { success: false; error: string }
 
 /**
- * Save the member's selected number of plots (1, 2, or 3) during onboarding.
+ * Save the member's selected number of plots during onboarding.
  */
 export async function savePlotSelection(plots: number): Promise<ActionResult> {
-  if (plots < 1 || plots > 3) {
-    return { success: false, error: 'Invalid plot count. Please select 1, 2, or 3 plots.' }
+  if (plots < 1) {
+    return { success: false, error: 'Please select at least 1 plot.' }
   }
 
   const supabase = await createSupabaseServerClient()
