@@ -19,18 +19,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// GLM Members DB — used only to validate the incoming token
-// The URL is public (not a secret) so we hardcode it as a fallback
-const GLM_URL  = process.env.GLM_SUPABASE_URL ?? "https://innidgegsjjeclvkskev.supabase.co";
-const GLM_ANON = process.env.MEMBERS_BRIDGE_ANON_KEY!;
-
-// Dawrash City Supabase project — used to create the local session
-const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const token = searchParams.get("token");
+
+  // Read all env vars inside the handler — not at module level.
+  // Module-level constants are evaluated at build time on Vercel,
+  // so env vars added after the build aren't visible there.
+  const GLM_URL     = "https://innidgegsjjeclvkskev.supabase.co"; // public, hardcoded
+  const GLM_ANON    = process.env.MEMBERS_BRIDGE_ANON_KEY;
+  const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   // ── 1. Token must be present ───────────────────────────────────
   if (!token) {
@@ -45,7 +44,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=config`);
   }
 
-  const glmClient = createClient(GLM_URL, GLM_ANON, {
+  const glmClient = createClient(GLM_URL, GLM_ANON!, {
     auth: { autoRefreshToken: false, persistSession: false },
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=config`);
   }
 
-  const adminClient = createClient(DAWRASH_URL, SERVICE_KEY, {
+  const adminClient = createClient(DAWRASH_URL!, SERVICE_KEY!, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
