@@ -17,6 +17,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// Force this route to always run dynamically — never cache the redirect
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const token = searchParams.get("token");
