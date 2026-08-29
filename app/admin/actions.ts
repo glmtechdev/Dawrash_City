@@ -64,7 +64,12 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
     return []
   }
 
-  if (!profiles || profiles.length === 0) return []
+  if (!profiles || profiles.length === 0) {
+    console.warn('[admin/actions] fetchAdminMembers: no profiles returned')
+    return []
+  }
+
+  console.log(`[admin/actions] fetchAdminMembers: fetched ${profiles.length} profiles`)
 
   // Fetch all transactions in one query
   const { data: allTx, error: txError } = await supabase
@@ -100,7 +105,7 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
       email: p.email || '',
       initials,
       plots: Number(p.plots ?? 0),
-      memberSince: p.created_at || p.member_since || new Date().toISOString(),
+      memberSince: p.member_since || p.created_at || new Date().toISOString(),
       covenantSignedAt: p.covenant_signed_at || null,
       nuban: p.nuban || '—',
       bank: p.bank || '—',
