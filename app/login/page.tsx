@@ -14,6 +14,7 @@ import { Mail, ArrowRight, CircleAlert, MailCheck } from 'lucide-react'
 
 const glmErrorMessages: Record<string, string> = {
   config: 'SSO is not configured correctly. Please contact support.',
+  config_svc: 'SSO is not configured correctly. Please contact support.',
   missing_token: 'Sign-in link was invalid. Please try again from the Members app.',
   invalid_token: 'Your session has expired. Please go back and click the button again.',
   session_failed: 'Could not create your session. Please try again.',
