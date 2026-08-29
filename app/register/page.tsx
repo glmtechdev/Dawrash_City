@@ -1,7 +1,7 @@
 'use client'
 
 import { AuthShell } from '@/components/dawrash/auth-shell'
-import { Mail, Smartphone, Sparkles } from 'lucide-react'
+import { Mail, Smartphone } from 'lucide-react'
 
 export default function RegisterPage() {
   return (
@@ -29,22 +29,22 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-center text-xs text-gold">
-          <Sparkles className="inline-block size-3.5 mr-1" />
-          First time accessing? Your land plot setup will begin automatically on your first visit!
+        <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-center text-sm text-muted-foreground">
+          Already a GLM member?{' '}
+          <a
+            href="https://members-dbase.vercel.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-[#e53e3e] hover:underline"
+          >
+            Open GLM Members App
+          </a>
         </div>
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Already a GLM member?{' '}
-        <a
-          href="https://members-dbase.vercel.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-semibold text-[#e53e3e] hover:underline"
-        >
-          Open GLM Members App
-        </a>
+        Not yet a member?{' '}
+        <span className="font-semibold text-foreground">Speak to your pastor to get registered.</span>
       </p>
     </AuthShell>
   )
