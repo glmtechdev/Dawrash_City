@@ -24,10 +24,14 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const token = searchParams.get("token");
 
-  // Derive public origin dynamically from request headers (x-forwarded-host / host)
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? "dawrashcity.vercel.app";
+  // Determine application public origin: prioritize configured NEXT_PUBLIC_SITE_URL in prod, fallback to request headers
+  const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   const proto = request.headers.get("x-forwarded-proto") ?? "https";
-  const appOrigin = host.includes("localhost") ? origin : `${proto}://${host}`;
+
+  const appOrigin = (envSiteUrl && !envSiteUrl.includes("localhost"))
+    ? envSiteUrl
+    : (host && !host.includes("localhost") ? `${proto}://${host}` : origin);
 
   // ── All env vars read inside the handler (not module-level) ───
   const GLM_URL  = "https://innidgegsjjeclvkskev.supabase.co";
