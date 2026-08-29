@@ -10,8 +10,10 @@
  *   { allowed: false }
  *
  * Environment variables required (set in Vercel + .env.local):
- *   MEMBERS_BRIDGE_URL    — full URL of the check-member function
- *   MEMBERS_BRIDGE_SECRET — shared secret sent as x-members-bridge-secret
+ *   MEMBERS_BRIDGE_URL      — full URL of the check-member function
+ *   MEMBERS_BRIDGE_SECRET   — shared secret sent as x-members-bridge-secret
+ *   MEMBERS_BRIDGE_ANON_KEY — GLM Supabase anon key (required by Supabase
+ *                             gateway as Authorization: Bearer header)
  */
 
 export type BridgeResult =
@@ -25,9 +27,10 @@ export type BridgeResult =
 export async function checkMemberBridge(email: string): Promise<BridgeResult> {
   const url = process.env.MEMBERS_BRIDGE_URL
   const secret = process.env.MEMBERS_BRIDGE_SECRET
+  const anonKey = process.env.MEMBERS_BRIDGE_ANON_KEY
 
-  if (!url || !secret) {
-    console.error('[bridge] MEMBERS_BRIDGE_URL or MEMBERS_BRIDGE_SECRET is not set')
+  if (!url || !secret || !anonKey) {
+    console.error('[bridge] MEMBERS_BRIDGE_URL, MEMBERS_BRIDGE_SECRET, or MEMBERS_BRIDGE_ANON_KEY is not set')
     return { allowed: false, error: 'Bridge not configured' }
   }
 
@@ -37,6 +40,9 @@ export async function checkMemberBridge(email: string): Promise<BridgeResult> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        // Supabase gateway requires this header on all edge function calls
+        'Authorization': `Bearer ${anonKey}`,
+        'apikey': anonKey,
         'x-members-bridge-secret': secret,
       },
       body: JSON.stringify({ email: email.trim().toLowerCase() }),
