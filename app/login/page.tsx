@@ -24,6 +24,18 @@ export default function LoginPage() {
   const [state, setState] = useState<'idle' | 'sent' | 'not_member' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
 
+  // Show error from /auth/glm redirect if present (e.g. ?error=config, ?error=invalid_token)
+  const searchParams = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search)
+    : null
+  const glmError = searchParams?.get('error')
+  const glmErrorMessages: Record<string, string> = {
+    config: 'SSO is not configured correctly. Please contact support.',
+    missing_token: 'Sign-in link was invalid. Please try again from the Members app.',
+    invalid_token: 'Your session has expired. Please go back and click the button again.',
+    session_failed: 'Could not create your session. Please try again.',
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (isPending) return
@@ -56,6 +68,16 @@ export default function LoginPage() {
         <p className="mt-2 leading-relaxed text-muted-foreground">
           Enter your church email and we will send you a secure sign-in link.
         </p>
+
+        {glmError && (
+          <Alert variant="destructive" className="mt-6 rounded-2xl">
+            <CircleAlert />
+            <AlertTitle>Something went wrong</AlertTitle>
+            <AlertDescription>
+              {glmErrorMessages[glmError] ?? 'An unexpected error occurred. Please try again.'}
+            </AlertDescription>
+          </Alert>
+        )}
 
         {state === 'not_member' && (
           <Alert variant="destructive" className="mt-6 rounded-2xl">
