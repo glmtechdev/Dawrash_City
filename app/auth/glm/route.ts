@@ -3,23 +3,29 @@
  * ─────────────────────────────────────────────────────────────────
  * Entry point when a GLM member arrives from the Members app.
  *
- * The access_token was issued by the GLM Supabase project.
- * Because both Supabase projects share the same JWT secret,
- * we can verify the token here without any extra network call.
+ * The GLM and Dawrash apps are separate Supabase projects with
+ * different JWT secrets, so we cannot verify the token locally.
+ * Instead we call the GLM project's auth API to validate the token
+ * and extract the user's identity — then create a Dawrash session.
  *
  * Flow:
  *  1. Read ?token from query string
- *  2. Verify the JWT signature using the shared secret
- *  3. Extract sub (user id), email, user_metadata
- *  4. Use the Supabase service role to upsert the member's
- *     profile row in the Dawrash DB (first visit only)
- *  5. Set a Dawrash session cookie via setSession()
- *  6. Redirect to /onboarding/plots (new) or /dashboard (returning)
+ *  2. Call GLM Supabase getUser(token) to validate and get identity
+ *  3. Use Dawrash service role to upsert profile (first visit only)
+ *  4. Use generateLink to create a Dawrash magic-link session
+ *  5. Redirect through Supabase verify → /auth/callback → /dashboard
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { jwtVerify } from "jose";
 import { createClient } from "@supabase/supabase-js";
+
+// GLM Members DB — used only to validate the incoming token
+const GLM_URL     = process.env.GLM_SUPABASE_URL!;
+const GLM_ANON    = process.env.MEMBERS_BRIDGE_ANON_KEY!;
+
+// Dawrash City Supabase project — used to create the local session
+const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -30,55 +36,45 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=missing_token`);
   }
 
-  // ── 2. Verify the JWT ─────────────────────────────────────────
-  // Both Supabase projects share the same JWT_SECRET.
-  // Set SUPABASE_JWT_SECRET in Vercel env vars (same value as
-  // GLM Members DB project's JWT secret — found in Supabase
-  // Dashboard → Project Settings → API → JWT Secret).
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
-  if (!jwtSecret) {
-    console.error("[auth/glm] SUPABASE_JWT_SECRET is not set");
+  // ── 2. Validate token via GLM Supabase auth API ────────────────
+  // We pass the token to GLM's getUser — if it's valid and not
+  // expired, we get back the user's identity. No shared secret needed.
+  if (!GLM_URL || !GLM_ANON) {
+    console.error("[auth/glm] GLM_SUPABASE_URL or MEMBERS_BRIDGE_ANON_KEY is not set");
     return NextResponse.redirect(`${origin}/login?error=config`);
   }
 
-  let payload: any;
-  try {
-    const secret = new TextEncoder().encode(jwtSecret);
-    const result = await jwtVerify(token, secret);
-    payload = result.payload;
-  } catch (err) {
-    console.error("[auth/glm] JWT verification failed:", err);
+  const glmClient = createClient(GLM_URL, GLM_ANON, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data: { user: glmUser }, error: userError } = await glmClient.auth.getUser(token);
+
+  if (userError || !glmUser?.email) {
+    console.error("[auth/glm] GLM token validation failed:", userError?.message);
     return NextResponse.redirect(`${origin}/login?error=invalid_token`);
   }
 
-  // ── 3. Extract identity from the verified payload ──────────────
-  const userId: string = payload.sub;
-  const email: string = payload.email ?? "";
-  const meta = payload.user_metadata ?? {};
-  const fullName: string = meta.full_name ?? email.split("@")[0];
-  const glmMemberId: string = userId; // the GLM project's auth.users.id
+  // ── 3. Extract identity ────────────────────────────────────────
+  const email       = glmUser.email;
+  const glmMemberId = glmUser.id;
+  const meta        = glmUser.user_metadata ?? {};
+  const fullName    = (meta.full_name as string) ?? email.split("@")[0];
+  const parts       = fullName.trim().split(" ");
+  const initials    = ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase();
 
-  // Derive initials
-  const parts = fullName.trim().split(" ");
-  const initials = (
-    (parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")
-  ).toUpperCase();
-
-  // ── 4. Upsert profile in Dawrash DB using service role ─────────
-  // Service role bypasses RLS — safe for server-side use only.
-  const dawrashUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-  if (!serviceKey) {
+  // ── 4. Upsert profile in Dawrash DB ───────────────────────────
+  if (!SERVICE_KEY) {
     console.error("[auth/glm] SUPABASE_SERVICE_ROLE_KEY is not set");
     return NextResponse.redirect(`${origin}/login?error=config`);
   }
 
-  const adminClient = createClient(dawrashUrl, serviceKey, {
+  const adminClient = createClient(DAWRASH_URL, SERVICE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Check if this member has been here before
+  // Check if returning member
   const { data: existing } = await adminClient
     .from("profiles")
     .select("id, onboarding_complete")
@@ -88,39 +84,27 @@ export async function GET(request: NextRequest) {
   const isNewMember = !existing?.onboarding_complete;
 
   if (!existing) {
-    // First visit — create their profile row.
-    // We use glm_member_id as the stable identifier; the Dawrash
-    // auth.users row is created separately by setSession below.
     const { error: insertError } = await adminClient.from("profiles").insert({
-      // id will be set once we know the Dawrash auth.users.id;
-      // for now we use a placeholder that gets updated below.
       glm_member_id: glmMemberId,
       full_name: fullName,
       email,
       initials,
     });
-
     if (insertError && !insertError.message.includes("duplicate")) {
       console.error("[auth/glm] profile insert error:", insertError.message);
     }
   }
 
-  // ── 5. Sign the member into the Dawrash Supabase project ───────
-  // Because both projects share the same JWT secret, we can create
-  // a Dawrash magic-link session by having the admin client generate
-  // a sign-in link and then setting the session directly.
-  //
-  // The cleanest approach: use generateLink to create a valid
-  // Dawrash session for this email, then redirect to the link.
-  // This makes Dawrash's auth.users aware of the member.
+  // ── 5. Generate a Dawrash magic-link and redirect ──────────────
+  // generateLink creates a one-time Supabase verify URL that signs
+  // the member into the Dawrash project without sending any email.
+  const destination = isNewMember ? "/onboarding/plots" : "/dashboard";
+
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
     type: "magiclink",
     email,
     options: {
-      data: {
-        full_name: fullName,
-        glm_member_id: glmMemberId,
-      },
+      data: { full_name: fullName, glm_member_id: glmMemberId },
     },
   });
 
@@ -129,11 +113,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=session_failed`);
   }
 
-  // action_link is the full Supabase verify URL. It already contains
-  // redirect_to pointing to the Dawrash site URL set in the Supabase
-  // dashboard. We just need to append our destination as a query param
-  // so the callback knows where to send the member after verifying.
-  const destination = isNewMember ? "/onboarding/plots" : "/dashboard";
   const actionLink = new URL(linkData.properties.action_link);
   actionLink.searchParams.set(
     "redirect_to",
