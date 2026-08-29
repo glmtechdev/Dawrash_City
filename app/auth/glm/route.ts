@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
   const GLM_ANON = process.env.MEMBERS_BRIDGE_ANON_KEY
     ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlubmlkZ2Vnc2pqZWNsdmtza2V2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2OTM2NDksImV4cCI6MjA5MDI2OTY0OX0.aidDrhnobEDvyWnCyUP5AhH9gxfoKHXt4nsytKpCywQ";
 
-  const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const DAWRASH_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://fzigfgczvaknoczrhmsc.supabase.co";
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
 
   // ── 1. Token must be present ───────────────────────────────────
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
   }
 
   // ── 2. Dawrash service key must be configured ──────────────────
-  if (!SERVICE_KEY || !DAWRASH_URL) {
-    console.error("[auth/glm] SUPABASE_SERVICE_ROLE_KEY or NEXT_PUBLIC_SUPABASE_URL is not set");
+  if (!SERVICE_KEY) {
+    console.error("[auth/glm] SUPABASE_SERVICE_ROLE_KEY is not set");
     return NextResponse.redirect(`${origin}/login?error=config_svc`);
   }
 
