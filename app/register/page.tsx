@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { AuthShell } from '@/components/dawrash/auth-shell'
 import { Mail, Smartphone, Sparkles } from 'lucide-react'
 
@@ -37,10 +36,20 @@ export default function RegisterPage() {
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        Already on a device with GLM app?{' '}
-        <Link href="/login" className="font-semibold text-gold hover:underline">
-          View sign-in instructions
-        </Link>
+        Already a GLM member?{' '}
+        <a
+          href="https://members-dbase.vercel.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-gold hover:underline"
+        >
+          Open GLM Members App
+        </a>
+      </p>
+
+      <p className="mt-3 text-center text-sm text-muted-foreground">
+        Not yet a member?{' '}
+        <span className="font-semibold text-foreground">Speak to your pastor to get registered.</span>
       </p>
     </AuthShell>
   )
