@@ -284,12 +284,6 @@ export default async function DashboardPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Bank
-              </p>
-              <p className="mt-1 font-semibold text-foreground">{member.bank}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Account name
               </p>
               <p className="mt-1 font-semibold text-foreground">DAWRASH / {member.name}</p>

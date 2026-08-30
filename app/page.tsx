@@ -131,9 +131,9 @@ export default function LandingPage() {
                     <Building2 className="size-5" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Dedicated NUBAN</h3>
+                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Dedicated Account</h3>
                     <p className="mt-1 text-xs leading-relaxed text-white/70">
-                      Each member receives a personal Wema Bank account number to direct all land savings contributions.
+                      Each member receives dedicated payment details to direct all land savings contributions.
                     </p>
                   </div>
                 </div>

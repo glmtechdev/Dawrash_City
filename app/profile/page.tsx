@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { getCurrentMemberServer } from '@/lib/member-data'
-import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira, PRICE_PER_PLOT_KOBO } from '@/lib/dawrash-data'
-import { CircleCheck, LandPlot, LogOut, Mail, CalendarDays, TrendingUp } from 'lucide-react'
+import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira, PRICE_PER_PLOT_KOBO, COVENANT_TEXT } from '@/lib/dawrash-data'
+import { CircleCheck, LandPlot, LogOut, Mail, CalendarDays, TrendingUp, ScrollText, CheckCircle2 } from 'lucide-react'
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-NG', {
@@ -149,6 +149,41 @@ export default async function ProfilePage() {
             aria-valuemax={100}
           />
         </div>
+      </section>
+
+      {/* Signed Covenant Document */}
+      <section className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <ScrollText className="size-5 text-gold" aria-hidden />
+            <h2 className="font-serif text-lg font-bold text-foreground">Land Savings Covenant</h2>
+          </div>
+          {member.covenantSignedAt && (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-success/10 px-3 py-1 text-xs font-semibold text-success">
+              <CheckCircle2 className="size-3.5" />
+              <span>Signed digitally on {formatDate(member.covenantSignedAt)}</span>
+            </div>
+          )}
+        </div>
+
+        <p className="mt-2 text-sm text-muted-foreground">
+          {member.covenantSignedAt
+            ? 'Below is the full text of your digitally executed Dawrash City Land Savings Covenant agreement.'
+            : 'You have not yet signed the Dawrash City Land Savings Covenant.'}
+        </p>
+
+        {member.covenantSignedAt ? (
+          <div className="mt-4 max-h-72 overflow-y-auto rounded-2xl border border-border bg-muted/40 p-4 text-xs font-mono leading-relaxed text-muted-foreground whitespace-pre-wrap">
+            {COVENANT_TEXT}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-center">
+            <p className="text-sm text-muted-foreground">Complete and sign your covenant to activate your plot reservation.</p>
+            <Button render={<Link href="/onboarding" />} className="mt-3 rounded-full bg-gold text-forest font-semibold hover:bg-gold-light">
+              Review & Sign Covenant
+            </Button>
+          </div>
+        )}
       </section>
 
       {/* Settings */}
