@@ -94,7 +94,7 @@ export const currentMember: Member = {
   plots: 3,
   memberSince: '2025-11-04',
   covenantSignedAt: '2025-11-06T14:22:00+01:00',
-  nuban: '0000000000',
+  nuban: '',
   bank: '',
   status: 'active',
   transactions: [
@@ -136,7 +136,7 @@ export const members: Member[] = [
     plots: 2,
     memberSince: '2025-10-12',
     covenantSignedAt: '2025-10-14T09:10:00+01:00',
-    nuban: '0000000000',
+    nuban: '',
     bank: '',
     status: 'completed',
     transactions: [
@@ -152,7 +152,7 @@ export const members: Member[] = [
     plots: 1,
     memberSince: '2026-01-20',
     covenantSignedAt: '2026-01-22T16:40:00+01:00',
-    nuban: '0000000000',
+    nuban: '',
     bank: '',
     status: 'active',
     transactions: [
@@ -168,7 +168,7 @@ export const members: Member[] = [
     plots: 2,
     memberSince: '2026-02-08',
     covenantSignedAt: null,
-    nuban: '0000000000',
+    nuban: '',
     bank: '',
     status: 'pending_covenant',
     transactions: [],
@@ -181,7 +181,7 @@ export const members: Member[] = [
     plots: 3,
     memberSince: '2025-09-30',
     covenantSignedAt: '2025-10-01T11:05:00+01:00',
-    nuban: '0000000000',
+    nuban: '',
     bank: '',
     status: 'active',
     transactions: [
@@ -198,7 +198,7 @@ export const members: Member[] = [
     plots: 1,
     memberSince: '2025-12-15',
     covenantSignedAt: '2025-12-16T08:30:00+01:00',
-    nuban: '0000000000',
+    nuban: '',
     bank: '',
     status: 'completed',
     transactions: [

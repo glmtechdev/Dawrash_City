@@ -293,10 +293,16 @@ export default async function DashboardPage() {
                 Account number
               </p>
               <div className="mt-1 flex items-center gap-3">
-                <p className="font-mono text-xl font-bold tracking-widest text-foreground">
-                  {member.nuban}
-                </p>
-                <CopyButton value={member.nuban} />
+                {member.nuban ? (
+                  <>
+                    <p className="font-mono text-xl font-bold tracking-widest text-foreground">
+                      {member.nuban}
+                    </p>
+                    <CopyButton value={member.nuban} />
+                  </>
+                ) : (
+                  <p className="font-mono text-xl font-bold tracking-widest text-foreground">Not set</p>
+                )}
               </div>
             </div>
           </div>

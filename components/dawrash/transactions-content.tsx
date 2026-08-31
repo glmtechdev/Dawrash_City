@@ -190,7 +190,7 @@ export function TransactionsContent({ member }: { member: Member }) {
               }
             }}
             disabled={loadingPay}
-            className="inline-flex shrink-0 items-center justify-center rounded-full bg-gold px-4 py-2 text-sm font-semibold text-gold-foreground disabled:opacity-60"
+            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-gold-foreground disabled:opacity-60"
           >
             {loadingPay ? 'Processing…' : 'Pay with Paystack'}
           </button>

@@ -58,7 +58,7 @@ export async function getCurrentMemberServer(): Promise<Member> {
       plots: profile.plots ?? 0,
       memberSince: profile.created_at || profile.member_since || new Date().toISOString(),
       covenantSignedAt: profile.covenant_signed_at || null,
-      nuban: profile.nuban || '0000000000',
+      nuban: profile.nuban || '',
       bank: profile.bank || '',
       status: profile.status || (profile.covenant_signed_at ? 'active' : 'pending_covenant'),
       transactions: transactions.length > 0 ? transactions : currentMember.transactions,
