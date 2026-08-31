@@ -258,6 +258,12 @@ Projection tool: The member payment flow includes a simple projection tool to he
 - `GLM_SUPABASE_URL`
 - `NEXT_PUBLIC_SITE_URL`
 
+### Development Overrides
+- `DEV_FORCE_EMAIL` *(development only)*: optional local-only email address (e.g. `gigsdev007@gmail.com`) that forces a demo member session when `NODE_ENV=development`. Store this value in `.env.local` and do NOT commit it.
+- `DEV_FORCE_NAME` *(development only)*: optional display name used when `DEV_FORCE_EMAIL` is set.
+
+Note: To preview updated UI copy or a new motto locally, replace the image assets in `public/images` (e.g. `dawrash-hero.png`, `dawrash-land.png`) with your updated screenshots. These image files are included in the repo and will be served by the dev server.
+
 ---
 
 ## 15. Routes

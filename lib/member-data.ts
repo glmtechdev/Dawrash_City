@@ -10,6 +10,30 @@ export async function getCurrentMemberServer(): Promise<Member> {
     const supabase = await createSupabaseServerClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
+    // Development-only override: return a demo member for a forced email
+    // when `DEV_FORCE_EMAIL` is set in .env.local. This lets a developer
+    // preview the members dashboard on localhost without a real SSO session.
+    // WARNING: This is intentionally gated to `development` only. Keep
+    // the value in your local `.env.local` (gitignored) and do NOT commit it.
+    const devForceEmail = process.env.DEV_FORCE_EMAIL?.trim().toLowerCase()
+    if (process.env.NODE_ENV === 'development' && devForceEmail) {
+      const email = devForceEmail
+      const fullName = process.env.DEV_FORCE_NAME ?? email.split('@')[0]
+      const parts = fullName.trim().split(' ')
+      const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'MB'
+
+      // If a real session exists, prefer the authenticated user.
+      if (userError || !user) {
+        return {
+          ...currentMember,
+          id: `dev_${initials}`,
+          name: fullName,
+          email,
+          initials,
+        }
+      }
+    }
+
     if (userError || !user) {
       return currentMember
     }
