@@ -53,11 +53,14 @@ function mapTransactions(rawTx: Record<string, unknown>[]): Transaction[] {
 export async function fetchAdminMembers(): Promise<AdminMember[]> {
   const supabase = createSupabaseAdminClient()
 
-  // Fetch all profiles (service role bypasses RLS)
+  // Fetch all profiles (service role bypasses RLS).
+  // Prefer the trusted created_at timestamp; fall back to member_since only if
+  // the column exists in the project schema, but keep the app resilient to
+  // legacy rows without it.
   const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
     .select('*')
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: true, nullsFirst: false })
 
   if (profilesError) {
     console.error('[admin/actions] fetchAdminMembers profiles error:', profilesError.message)
@@ -99,13 +102,20 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
       ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() ||
       'MB'
 
+    const trustedCreatedAt =
+      typeof p.created_at === 'string' && p.created_at
+        ? p.created_at
+        : typeof p.member_since === 'string' && p.member_since
+          ? p.member_since
+          : new Date().toISOString()
+
     return {
       id: p.id,
       name: fullName,
       email: p.email || '',
       initials,
       plots: Number(p.plots ?? 0),
-      memberSince: p.member_since || p.created_at || new Date().toISOString(),
+      memberSince: trustedCreatedAt,
       covenantSignedAt: p.covenant_signed_at || null,
       nuban: p.nuban || '-',
       bank: p.bank || '-',
