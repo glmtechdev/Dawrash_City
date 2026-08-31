@@ -34,6 +34,20 @@ export async function checkMemberBridge(email: string): Promise<BridgeResult> {
     return { allowed: false, error: 'Bridge not configured' }
   }
 
+  // Development-only allowlist override. When running locally with
+  // NODE_ENV=development you may set `DEV_FORCE_EMAIL` or a comma-separated
+  // `DEV_ALLOWLIST` in your `.env.local` to bypass the external bridge and
+  // allow access for specified emails. This must never be used in production.
+  if (process.env.NODE_ENV === 'development') {
+    const devForce = process.env.DEV_FORCE_EMAIL?.trim().toLowerCase()
+    const devList = (process.env.DEV_ALLOWLIST ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+    const emailLc = email.trim().toLowerCase()
+    if (devForce === emailLc || devList.includes(emailLc)) {
+      const name = process.env.DEV_FORCE_NAME ?? email.split('@')[0]
+      return { allowed: true, member_id: `dev:${emailLc}`, full_name: name }
+    }
+  }
+
   let res: Response
   try {
     res = await fetch(url, {
