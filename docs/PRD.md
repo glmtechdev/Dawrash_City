@@ -1,4 +1,4 @@
-# Dawrash City — Product Requirements Document
+# Dawrash City - Product Requirements Document
 
 **Version:** 1.1  
 **Last updated:** August 2026  
@@ -11,7 +11,7 @@
 
 Dawrash City is a faith-based land savings platform built exclusively for registered members of Gospel Labour Ministry (GLM). It enables members to reserve plots of land within the Dawrash City development project, track their savings progress, and receive land certificates upon full payment.
 
-The platform is accessed exclusively through the GLM Members app via Single Sign-On (SSO). Members do not create a separate account or log in via separate passwords or email magic links — their GLM membership is their identity.
+The platform is accessed exclusively through the GLM Members app via Single Sign-On (SSO). Members do not create a separate account or log in via separate passwords or email magic links - their GLM membership is their identity.
 
 ---
 
@@ -34,7 +34,7 @@ Dawrash City solves all of these.
 | Goal | Metric |
 |---|---|
 | Give every eligible member a clear view of their savings progress | Dashboard loads with accurate data on first login |
-| Enforce membership gate — non-members cannot access the platform | 100% of access attempts validated through GLM Supabase |
+| Enforce membership gate - non-members cannot access the platform | 100% of access attempts validated through GLM Supabase |
 | Automate progress tracking from bank transfers | Admin confirms payment → member dashboard updates immediately |
 | Provide admin with full programme visibility | Admin can see all members, totals, flags, and certificate queue |
 | Legally bind members through a digital covenant | Covenant acceptance recorded in Supabase with timestamp |
@@ -112,13 +112,13 @@ https://dawrashcity.vercel.app/auth/glm?token=<jwt>
 
 New members landing on `/onboarding/plots` for the first time complete two steps, which persist data directly to Supabase:
 
-### Step 1 — Plot Selection (`/onboarding/plots`)
-- Member selects their desired number of plots (₦2,000,000 per plot) — 1, 2, or more
+### Step 1 - Plot Selection (`/onboarding/plots`)
+- Member selects their desired number of plots (₦2,000,000 per plot) - 1, 2, or more
 - Clicks "Continue" → triggers `savePlotSelection` Server Action
 - Writes `plots` count to member profile row in Dawrash Supabase
 - Members can increase their target at any time from the Profile page; they cannot reduce it below what they have already paid
 
-### Step 2 — Covenant Signing (`/onboarding/covenant`)
+### Step 2 - Covenant Signing (`/onboarding/covenant`)
 - Member reads the full Dawrash City Land Savings Covenant
 - Ticks acceptance checkbox and clicks "I Accept & Continue"
 - Triggers `acceptCovenant` Server Action
@@ -150,7 +150,7 @@ New members landing on `/onboarding/plots` for the first time complete two steps
 
 Note: The platform will surface an estimated Paystack commission for full-target payments. If a member chooses to pay their full remaining target in a single transaction, the UI will display the target amount including the estimated Paystack fees so members understand the total they must pay to fully settle their plot(s) in one payment.
 
-Projection tool: The member payment flow includes a simple projection tool to help members plan multiple equal payments. The UI shows per-payment fee estimates, total fees across all projected payments, and the total charged amount (intended + fees). This projection is for planning only — actual fees may vary slightly depending on Paystack rounding and settlement rules.
+Projection tool: The member payment flow includes a simple projection tool to help members plan multiple equal payments. The UI shows per-payment fee estimates, total fees across all projected payments, and the total charged amount (intended + fees). This projection is for planning only - actual fees may vary slightly depending on Paystack rounding and settlement rules.
 
 ### Recent Payments
 - Last 5 transactions fetched live from Supabase `transactions` table
@@ -174,7 +174,7 @@ Projection tool: The member payment flow includes a simple projection tool to he
 - Plot target badge
 - Member since date & covenant signed timestamp
 - Savings snapshot (saved / target / progress %)
-- **Update Target** button — allows active members to increase their plot count; cannot reduce below confirmed-paid plots; hidden for completed members
+- **Update Target** button - allows active members to increase their plot count; cannot reduce below confirmed-paid plots; hidden for completed members
 - Sign out button
 
 ---
@@ -276,3 +276,15 @@ Projection tool: The member payment flow includes a simple projection tool to he
 | `/transactions` | Dynamic | Authenticated member | Payment history |
 | `/profile` | Dynamic | Authenticated member | Member profile |
 | `/admin` | Static | Admin only | Admin panel |
+
+## 16. Writing & Content Guidelines
+
+To keep product copy clear, consistent, and human-reviewed, follow these rules when editing the PRD or adding user-facing text in the app.
+
+- **No em dashes or typographic dashes:** Do not use the em dash character (EM DASH) or other typographic dashes in copy. Use simple punctuation: periods, commas, or a plain hyphen (-) only when needed for compound words.
+- **Avoid AI slops:** Do not use vague, generic, or marketing-style phrases often produced by generative tools. Examples to avoid: "leveraging", "synergy", "AI-powered", "cutting-edge", "best-in-class". Prefer concrete, specific language describing what the product does and why it matters.
+- **Keep sentences short and factual:** Aim for one idea per sentence and avoid flowery or ambiguous wording. Replace abstract claims with concrete outcomes and expected user actions.
+- **Provide source and context for copy changes:** When changing UI copy, include the file path and the exact string being changed in the PR description so reviewers can verify the change.
+- **Human review required:** Any copy created or suggested by an AI assistant must be reviewed and approved by a human owner before merging to `main`.
+
+These guidelines are authoritative for all future PRD updates and UI text changes in the repository.

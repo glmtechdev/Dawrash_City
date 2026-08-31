@@ -704,7 +704,7 @@ export function CertificatesSection({ members }: { members: Member[] }) {
 /*  Audit Flags                                                         */
 /* ------------------------------------------------------------------ */
 
-// Audit flags are still static in v1 — will be driven by payment webhooks in v2.
+// Audit flags are still static in v1 - will be driven by payment webhooks in v2.
 const auditFlags = [
   {
     id: 'af1',

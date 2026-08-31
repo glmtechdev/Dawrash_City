@@ -107,8 +107,8 @@ export async function fetchAdminMembers(): Promise<AdminMember[]> {
       plots: Number(p.plots ?? 0),
       memberSince: p.member_since || p.created_at || new Date().toISOString(),
       covenantSignedAt: p.covenant_signed_at || null,
-      nuban: p.nuban || '—',
-      bank: p.bank || '—',
+      nuban: p.nuban || '-',
+      bank: p.bank || '-',
       status: deriveStatus(p),
       transactions,
     } satisfies AdminMember

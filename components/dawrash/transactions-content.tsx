@@ -100,7 +100,7 @@ export function TransactionsContent({ member }: { member: Member }) {
                 <strong>
                   {amount && Number(amount) > 0
                     ? formatNaira(calcFeeForKobo(Math.round(Number(amount) * 100)))
-                    : '—'}
+                    : '-'}
                 </strong>
                 <span className="ml-2 text-xs">(per payment, estimated)</span>
               </div>
@@ -109,7 +109,7 @@ export function TransactionsContent({ member }: { member: Member }) {
                 <strong>
                   {amount && Number(amount) > 0
                     ? formatNaira(Math.round(Number(amount) * 100) + calcFeeForKobo(Math.round(Number(amount) * 100)))
-                    : '—'}
+                    : '-'}
                 </strong>
               </div>
             </div>
@@ -174,7 +174,7 @@ export function TransactionsContent({ member }: { member: Member }) {
                     },
                     callback: function (resp: any) {
                       // resp contains reference and status; server webhook will reconcile.
-                      toast.success('Payment complete — awaiting confirmation')
+                      toast.success('Payment complete - awaiting confirmation')
                       // Optionally refresh or navigate to transactions
                       window.location.reload()
                     },
@@ -245,7 +245,7 @@ export function TransactionsContent({ member }: { member: Member }) {
             Pending
           </p>
           <p className="mt-1 font-serif text-sm font-bold text-warning break-all">
-            {pendingTotal > 0 ? formatNaira(pendingTotal) : '—'}
+            {pendingTotal > 0 ? formatNaira(pendingTotal) : '-'}
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">

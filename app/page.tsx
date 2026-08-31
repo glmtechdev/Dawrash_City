@@ -132,9 +132,9 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Dedicated Account</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-white/70">
-                      Each member receives dedicated payment details to direct all land savings contributions.
-                    </p>
+                      <p className="mt-1 text-xs leading-relaxed text-white/70">
+                        Use the in‑app Paystack checkout (recommended) for instant credit and automated reconciliation, or transfer to your dedicated account. Members are responsible for Paystack processing fees - the app shows an estimated fee before you confirm payment.
+                      </p>
                   </div>
                 </div>
 
@@ -144,9 +144,9 @@ export default function LandingPage() {
                   </div>
                   <div>
                     <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Zero Interest or Fees</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-white/70">
-                      100% of your contributions go toward your land target. No hidden maintenance or interest charges.
-                    </p>
+                      <p className="mt-1 text-xs leading-relaxed text-white/70">
+                        100% of your platform contributions go toward your land target. Note: payment processor fees (Paystack) may apply and are displayed before payment - these fees are paid by the member.
+                      </p>
                   </div>
                 </div>
               </div>
@@ -182,7 +182,7 @@ export default function LandingPage() {
                   </span>
                   <h4 className="mt-2.5 font-serif text-base font-bold text-white">Plot Count</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                    Lock in your plots at the fixed ₦2,000,000 rate — as many as you want.
+                    Lock in your plots at the fixed ₦2,000,000 rate - as many as you want.
                   </p>
                 </div>
 

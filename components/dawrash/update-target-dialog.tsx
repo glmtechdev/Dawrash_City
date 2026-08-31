@@ -23,7 +23,7 @@ import { Spinner } from '@/components/ui/spinner'
 
 interface UpdateTargetDialogProps {
   currentPlots: number
-  /** Minimum selectable plots — cannot go below confirmed-paid plots */
+  /** Minimum selectable plots - cannot go below confirmed-paid plots */
   minPlots?: number
 }
 

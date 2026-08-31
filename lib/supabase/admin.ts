@@ -1,6 +1,6 @@
 /**
  * Supabase admin client using the service-role key.
- * Bypasses Row Level Security — only use in server actions and route handlers,
+ * Bypasses Row Level Security - only use in server actions and route handlers,
  * never in client components or anywhere the key could leak to the browser.
  */
 import { createClient } from '@supabase/supabase-js'

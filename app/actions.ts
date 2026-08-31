@@ -65,7 +65,7 @@ export async function updateTarget(plots: number): Promise<ActionResult> {
   }
 
   if (profile.status === 'completed') {
-    return { success: false, error: 'Your target is fully paid — it cannot be changed.' }
+    return { success: false, error: 'Your target is fully paid - it cannot be changed.' }
   }
 
   // Prevent lowering plots below what has already been fully confirmed

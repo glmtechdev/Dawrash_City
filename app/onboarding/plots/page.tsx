@@ -159,7 +159,7 @@ export default function PlotSelectionPage() {
             </span>
           </button>
 
-          {/* Counter — shown when "More" is active */}
+          {/* Counter - shown when "More" is active */}
           {isCustomActive && (
             <div className="flex items-center justify-between rounded-2xl border border-gold/40 bg-accent px-5 py-4">
               <p className="text-sm font-medium text-foreground">Number of plots</p>

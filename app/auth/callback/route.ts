@@ -7,7 +7,7 @@
  *  1. Ensures a profile row exists in public.profiles (upsert).
  *     The handle_new_user() DB trigger normally does this on INSERT
  *     to auth.users, but on subsequent logins the trigger doesn't
- *     fire — so we upsert here to cover both cases.
+ *     fire - so we upsert here to cover both cases.
  *
  *  2. Sends the user to the correct page:
  *       - New member  → /onboarding/plots
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
           .eq('id', user.id)
           .maybeSingle()
 
-        // Only upsert the identity fields — never touch onboarding_complete so we
+        // Only upsert the identity fields - never touch onboarding_complete so we
         // don't clobber the value written by /auth/glm or the acceptCovenant action.
         const { error: upsertError } = await supabase
           .from('profiles')

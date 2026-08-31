@@ -1,7 +1,7 @@
 /**
  * GET /auth/glm?token=<glm_access_token>
  * ─────────────────────────────────────────────────────────────────
- * SSO entry point — called when a GLM member clicks "Open Dawrash City".
+ * SSO entry point - called when a GLM member clicks "Open Dawrash City".
  *
  * The GLM and Dawrash apps are separate Supabase projects with different
  * JWT secrets, so we validate the token by calling GLM's auth API directly.
@@ -23,7 +23,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { decodeJwt } from "jose";
 
-// Force this route to always run dynamically — never cache the redirect
+// Force this route to always run dynamically - never cache the redirect
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const meta = glmUser.user_metadata ?? {};
     fullName = (meta.full_name as string) ?? email.split("@")[0];
   } else {
-    console.warn("[auth/glm] GLM getUser note:", userError?.message, "— attempting JWT decode fallback");
+    console.warn("[auth/glm] GLM getUser note:", userError?.message, "- attempting JWT decode fallback");
     try {
       const payload = decodeJwt(token);
       if (payload && typeof payload.email === "string") {
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
   // endpoint (which triggers an implicit-flow hash response), we:
   //   a) Generate the link to get the hashed_token
   //   b) Call verifyOtp({ token_hash, type: "magiclink" }) directly here on
-  //      the server — this returns a full session without any browser hop
+  //      the server - this returns a full session without any browser hop
   //   c) Write the session into SSR cookies and redirect straight to the app
   //
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  // Exchange the hashed_token for a real session — fully server-side,
+  // Exchange the hashed_token for a real session - fully server-side,
   // no browser redirect through Supabase /auth/v1/verify needed
   const { error: otpError } = await ssrClient.auth.verifyOtp({
     token_hash: linkData.properties.hashed_token,
@@ -201,6 +201,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${appOrigin}/login?error=session_failed`);
   }
 
-  // Session cookies are now set on `response` — return the redirect
+  // Session cookies are now set on `response` - return the redirect
   return response;
 }

@@ -4,7 +4,7 @@ import { fetchAdminMembers } from '@/app/admin/actions'
 import { AdminClient } from '@/app/admin/admin-client'
 
 /**
- * Admin page — server component.
+* Admin page - server component.
  * Middleware already blocks non-admins, but we double-check here for safety
  * before fetching all member data with the service-role client.
  */

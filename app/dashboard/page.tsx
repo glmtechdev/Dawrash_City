@@ -275,7 +275,7 @@ export default async function DashboardPage() {
           <div>
             <h2 className="font-serif text-lg font-bold text-foreground">Payment Account</h2>
             <p className="text-sm text-muted-foreground">
-              Transfer to this account from any bank to log your payment.
+              Use the in‑app Paystack checkout (recommended) for instant credit and automated reconciliation. Alternatively, transfer to this account and use your full name as narration. Members are responsible for any processing fees.
             </p>
           </div>
         </div>
@@ -302,7 +302,7 @@ export default async function DashboardPage() {
           </div>
 
           <p className="mt-4 rounded-xl bg-gold/8 px-4 py-2.5 text-sm text-gold">
-            Use your name as the transfer narration so your payment is matched automatically.
+            For bank transfers, use your full name as the transfer narration so your payment is matched automatically.
           </p>
         </div>
       </section>
@@ -327,7 +327,7 @@ export default async function DashboardPage() {
           <div className="mt-6 rounded-2xl border border-dashed border-border py-10 text-center">
             <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Make a transfer to get started.
+              Make a payment via Paystack or bank transfer to get started.
             </p>
           </div>
         ) : (

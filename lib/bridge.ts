@@ -10,9 +10,9 @@
  *   { allowed: false }
  *
  * Environment variables required (set in Vercel + .env.local):
- *   MEMBERS_BRIDGE_URL      — full URL of the check-member function
- *   MEMBERS_BRIDGE_SECRET   — shared secret sent as x-members-bridge-secret
- *   MEMBERS_BRIDGE_ANON_KEY — GLM Supabase anon key (required by Supabase
+ *   MEMBERS_BRIDGE_URL      - full URL of the check-member function
+ *   MEMBERS_BRIDGE_SECRET   - shared secret sent as x-members-bridge-secret
+ *   MEMBERS_BRIDGE_ANON_KEY - GLM Supabase anon key (required by Supabase
  *                             gateway as Authorization: Bearer header)
  */
 
@@ -46,7 +46,7 @@ export async function checkMemberBridge(email: string): Promise<BridgeResult> {
         'x-members-bridge-secret': secret,
       },
       body: JSON.stringify({ email: email.trim().toLowerCase() }),
-      // Don't cache — membership status can change
+      // Don't cache - membership status can change
       cache: 'no-store',
     })
   } catch (err) {
