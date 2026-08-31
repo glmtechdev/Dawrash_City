@@ -112,11 +112,11 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
   try {
     const supabase = createSupabaseAdminClient()
 
-    // 1. Fetch Profiles
+    // 1. Fetch Profiles (ordered by created_at)
     const { data: rawProfiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: false, nullsFirst: false })
 
     if (profilesError) {
       console.warn('[admin/actions] Supabase profiles query error:', profilesError.message)

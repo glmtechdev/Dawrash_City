@@ -15,6 +15,7 @@ Columns:
 - `onboarding_complete` (boolean, default `false`)
 - `member_since` (date, default `CURRENT_DATE`)
 - `covenant_signed_at` (timestamptz, nullable)
+- `created_at` (timestamptz, default `now()`)
 - `updated_at` (timestamptz, default `now()`)
 - `is_admin` (boolean, default `false`)
 - `is_superadmin` (boolean, default `false`)
