@@ -131,9 +131,9 @@ export default function LandingPage() {
                     <Building2 className="size-5" />
                   </div>
                   <div>
-                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Dedicated Account</h3>
+                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Instant Inflows</h3>
                       <p className="mt-1 text-xs leading-relaxed text-white/70">
-                        Use the in‑app Paystack checkout (recommended) for instant credit and automated reconciliation, or transfer to your dedicated account. Members are responsible for Paystack processing fees - the app shows an estimated fee before you confirm payment.
+                        Use the secure in‑app Paystack checkout for instant credit and automated reconciliation toward your land target. Members are responsible for standard processor fees.
                       </p>
                   </div>
                 </div>

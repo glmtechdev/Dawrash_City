@@ -266,53 +266,30 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Payment account ── */}
+      {/* ── Direct Savings Contribution ── */}
       <section
-        aria-label="Payment account details"
+        aria-label="Make a contribution"
         className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm"
       >
-        <div className="flex items-center gap-3">
-          <span className="flex size-11 items-center justify-center rounded-2xl bg-accent text-gold">
-            <Building2 className="size-5" aria-hidden />
-          </span>
-          <div>
-            <h2 className="font-serif text-lg font-bold text-foreground">Payment Account</h2>
-            <p className="text-sm text-muted-foreground">
-              Use the in‑app Paystack checkout (recommended) for instant credit and automated reconciliation. Alternatively, transfer to this account and use your full name as narration. Members are responsible for any processing fees.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-2xl border border-border bg-muted/40 p-5">
-          <div className="grid gap-4 sm:grid-cols-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3.5">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gold/10 text-gold">
+              <Sparkles className="size-6" aria-hidden />
+            </span>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Account name
+              <h2 className="font-serif text-lg font-bold text-foreground">Save Toward Your Plots</h2>
+              <p className="text-sm text-muted-foreground">
+                Make flexible contributions at your own pace via instant in-app checkout.
               </p>
-              <p className="mt-1 font-semibold text-foreground">DAWRASH / {member.name}</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Account number
-              </p>
-              <div className="mt-1 flex items-center gap-3">
-                {member.nuban ? (
-                  <>
-                    <p className="font-mono text-xl font-bold tracking-widest text-foreground">
-                      {member.nuban}
-                    </p>
-                    <CopyButton value={member.nuban} />
-                  </>
-                ) : (
-                  <p className="font-mono text-xl font-bold tracking-widest text-foreground">Not set</p>
-                )}
-              </div>
             </div>
           </div>
-
-          <p className="mt-4 rounded-xl bg-gold/8 px-4 py-2.5 text-sm text-gold">
-            For bank transfers, use your full name as the transfer narration so your payment is matched automatically.
-          </p>
+          <Link
+            href="/transactions"
+            className="inline-flex items-center justify-center rounded-full bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground transition-all hover:bg-gold/90"
+          >
+            Make Payment
+            <ArrowRight className="ml-1.5 size-4" />
+          </Link>
         </div>
       </section>
 

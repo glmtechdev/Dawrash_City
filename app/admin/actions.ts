@@ -20,10 +20,11 @@ export type AdminMember = {
   initials: string
   glmMemberId?: string | null
   plots: number
-  memberSince: string
+  createdAt: string
+  memberSince?: string
   covenantSignedAt: string | null
-  nuban: string
-  bank: string
+  nuban?: string | null
+  bank?: string | null
   status: MemberStatus
   onboardingComplete: boolean
   isAdmin: boolean
@@ -212,10 +213,11 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
         initials,
         glmMemberId: p.glm_member_id || null,
         plots: Number(p.plots ?? 0),
+        createdAt: trustedCreatedAt,
         memberSince: trustedCreatedAt,
         covenantSignedAt: p.covenant_signed_at || null,
-        nuban: p.nuban || '-',
-        bank: p.bank || 'Wema Bank',
+        nuban: p.nuban || null,
+        bank: p.bank || null,
         status: deriveStatus(p),
         onboardingComplete: Boolean(p.onboarding_complete),
         isAdmin: Boolean(p.is_admin),
@@ -303,10 +305,9 @@ function getFallbackDashboardData(): AdminDashboardData {
     email: m.email,
     initials: m.initials,
     plots: m.plots,
+    createdAt: m.memberSince,
     memberSince: m.memberSince,
     covenantSignedAt: m.covenantSignedAt,
-    nuban: m.nuban || '0123456789',
-    bank: m.bank || 'Wema Bank',
     status: m.status,
     onboardingComplete: true,
     isAdmin: m.id === 'mbr_001',

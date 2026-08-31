@@ -2,6 +2,8 @@
 // and formatted to naira only at display time.
 
 export const PRICE_PER_PLOT_KOBO = 2_000_000 * 100 // 2,000,000 naira per plot
+export const TOTAL_PROJECT_PLOTS = 2_500 // Total Dawrash City master survey plots
+export const TOTAL_PROJECT_TARGET_KOBO = TOTAL_PROJECT_PLOTS * PRICE_PER_PLOT_KOBO // 5,000,000,000 naira
 
 export function formatNaira(kobo: number): string {
   const naira = Math.round(kobo / 100)

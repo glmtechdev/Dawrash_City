@@ -47,6 +47,8 @@ import {
   type MemberStatus,
   type PaymentStatus,
   PRICE_PER_PLOT_KOBO,
+  TOTAL_PROJECT_PLOTS,
+  TOTAL_PROJECT_TARGET_KOBO,
 } from '@/lib/dawrash-data'
 import {
   type AdminMember,
@@ -59,7 +61,6 @@ import {
   updateCertificateDeliveryAction,
   resolveAuditFlagAction,
   updateMemberAdminRoleAction,
-  updateMemberPlotsAction,
 } from '@/app/admin/actions'
 import {
   Users,
@@ -81,7 +82,6 @@ import {
   Building2,
   Clock,
   ExternalLink,
-  Edit3,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -167,7 +167,7 @@ export function OverviewSection({
 
   // Export handlers
   function exportMembersCsv() {
-    const headers = ['ID', 'Name', 'Email', 'Status', 'Plots', 'Paid (NGN)', 'Target (NGN)', 'NUBAN', 'Bank', 'Covenant Signed']
+    const headers = ['ID', 'Name', 'Email', 'Status', 'Plots', 'Paid (NGN)', 'Target (NGN)', 'Covenant Signed']
     const rows = members.map((m) => {
       const paid = memberSavedKobo(m) / 100
       const tgt = targetKobo(m) / 100
@@ -179,8 +179,6 @@ export function OverviewSection({
         m.plots,
         paid,
         tgt,
-        `"${m.nuban}"`,
-        `"${m.bank}"`,
         m.covenantSignedAt ? `"${formatDate(m.covenantSignedAt)}"` : '"Not signed"',
       ].join(',')
     })
@@ -268,17 +266,21 @@ export function OverviewSection({
             <span className="flex size-10 items-center justify-center rounded-xl bg-gold/10 text-gold">
               <LandPlot className="size-5" />
             </span>
-            <span className="text-xs font-semibold text-gold">₦2.0M / plot</span>
+            <Badge variant="outline" className="border-gold/30 bg-gold/5 text-gold text-[11px]">
+              {percent(totalPlotsReserved, TOTAL_PROJECT_PLOTS)}% subscribed
+            </Badge>
           </div>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Plots Status
+            Plots Allocation
           </p>
           <p className="mt-1 font-serif text-2xl font-bold text-foreground">
-            {totalPlotsPaid} / {totalPlotsReserved}{' '}
-            <span className="text-sm font-normal text-muted-foreground">Plots Paid</span>
+            {totalPlotsReserved.toLocaleString()}{' '}
+            <span className="text-sm font-normal text-muted-foreground">
+              / {TOTAL_PROJECT_PLOTS.toLocaleString()} Plots
+            </span>
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {totalPlotsReserved - totalPlotsPaid} plots remaining in progress
+            {totalPlotsPaid} fully paid · {(TOTAL_PROJECT_PLOTS - totalPlotsReserved).toLocaleString()} remaining in master plan
           </p>
         </div>
 
@@ -513,9 +515,7 @@ export function MembersSection({
       const q = query.toLowerCase()
       const matchesQuery =
         m.name.toLowerCase().includes(q) ||
-        m.email.toLowerCase().includes(q) ||
-        m.nuban.includes(q) ||
-        m.bank.toLowerCase().includes(q)
+        m.email.toLowerCase().includes(q)
       const matchesStatus = statusFilter === 'all' || m.status === statusFilter
       const matchesRole = roleFilter === 'all' || (roleFilter === 'admin' && (m.isAdmin || m.isSuperadmin))
       return matchesQuery && matchesStatus && matchesRole
@@ -545,7 +545,7 @@ export function MembersSection({
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, email, NUBAN or bank..."
+            placeholder="Search by member name or email..."
             className="h-11 rounded-full pl-10"
           />
         </div>
@@ -676,7 +676,7 @@ export function MembersSection({
 /*  Member Detail & Role Control Drawer                               */
 /* ------------------------------------------------------------------ */
 
-function MemberDrawer({
+export function MemberDrawer({
   member,
   onClose,
   onRefresh,
@@ -687,10 +687,6 @@ function MemberDrawer({
   onRefresh: () => void
   onOpenRecordPayment: (memberId?: string) => void
 }) {
-  const [updatingRole, setUpdatingRole] = useState(false)
-  const [editingPlots, setEditingPlots] = useState(false)
-  const [plotsVal, setPlotsVal] = useState<number>(member?.plots ?? 1)
-
   if (!member) return null
 
   const paid = memberSavedKobo(member)
@@ -698,31 +694,6 @@ function MemberDrawer({
   const remaining = Math.max(0, tgt - paid)
   const pct = percent(paid, tgt)
   const plotsDone = Math.floor(paid / PRICE_PER_PLOT_KOBO)
-
-  async function handleToggleRole(role: 'is_admin' | 'is_superadmin', currentVal: boolean) {
-    if (!member) return
-    setUpdatingRole(true)
-    const res = await updateMemberAdminRoleAction(member.id, role, !currentVal)
-    setUpdatingRole(false)
-    if (res.success) {
-      toast.success(`Updated ${role} privilege for ${member.name}`)
-      onRefresh()
-    } else {
-      toast.error(res.error || 'Failed to update role')
-    }
-  }
-
-  async function handleSavePlots() {
-    if (!member) return
-    const res = await updateMemberPlotsAction(member.id, plotsVal)
-    if (res.success) {
-      toast.success(`Updated plot quota to ${plotsVal} for ${member.name}`)
-      setEditingPlots(false)
-      onRefresh()
-    } else {
-      toast.error(res.error || 'Failed to update plots')
-    }
-  }
 
   return (
     <Sheet open={!!member} onOpenChange={(open) => (!open ? onClose() : null)}>
@@ -796,85 +767,43 @@ function MemberDrawer({
             </div>
           </div>
 
-          {/* Superadmin Role & Quota Controls */}
-          <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
-              <ShieldAlert className="size-3.5" />
-              Superadmin Privileges
-            </p>
-
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button
-                variant={member.isAdmin ? 'default' : 'outline'}
-                size="sm"
-                disabled={updatingRole}
-                onClick={() => handleToggleRole('is_admin', member.isAdmin)}
-                className="rounded-xl text-xs"
-              >
-                {member.isAdmin ? 'Revoke Admin' : 'Make Admin'}
-              </Button>
-
-              <Button
-                variant={member.isSuperadmin ? 'default' : 'outline'}
-                size="sm"
-                disabled={updatingRole}
-                onClick={() => handleToggleRole('is_superadmin', member.isSuperadmin)}
-                className="rounded-xl text-xs border-gold/40 text-gold"
-              >
-                {member.isSuperadmin ? 'Revoke Superadmin' : 'Make Superadmin'}
-              </Button>
+          {/* Role Status & Quota Summary */}
+          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 text-gold" />
+                <span className="text-xs font-semibold text-foreground">Access Role</span>
+              </div>
+              <div>
+                {member.isSuperadmin ? (
+                  <Badge className="border-gold/40 bg-gold/15 text-gold text-xs font-semibold">
+                    Superadmin
+                  </Badge>
+                ) : member.isAdmin ? (
+                  <Badge variant="outline" className="border-border text-foreground text-xs">
+                    Administrator
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs text-muted-foreground">
+                    Church Member
+                  </Badge>
+                )}
+              </div>
             </div>
 
-            <div className="mt-3 flex items-center justify-between pt-2 border-t border-gold/20">
-              <span className="text-xs text-muted-foreground">Plot Allocation Quota</span>
-              {!editingPlots ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-foreground">{member.plots} Plots</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setPlotsVal(member.plots)
-                      setEditingPlots(true)
-                    }}
-                    className="size-6 p-0 text-muted-foreground hover:text-foreground"
-                  >
-                    <Edit3 className="size-3" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={50}
-                    value={plotsVal}
-                    onChange={(e) => setPlotsVal(Number(e.target.value))}
-                    className="h-7 w-16 text-xs"
-                  />
-                  <Button size="sm" onClick={handleSavePlots} className="h-7 px-2 text-xs bg-gold text-gold-foreground">
-                    Save
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setEditingPlots(false)} className="h-7 px-2 text-xs">
-                    Cancel
-                  </Button>
-                </div>
-              )}
+            <div className="mt-3 flex items-center justify-between pt-3 border-t border-border">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Land Allocation Quota</p>
+                <p className="text-[11px] text-muted-foreground">Member-selected covenant target</p>
+              </div>
+              <Badge variant="outline" className="border-gold/40 bg-gold/10 text-gold font-bold text-xs">
+                {plotLabel(member.plots)}
+              </Badge>
             </div>
           </div>
 
           {/* Member Details List */}
           <dl className="flex flex-col gap-2.5 rounded-2xl border border-border p-4 text-xs">
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">NUBAN / Virtual Account</dt>
-              <dd className="font-mono font-semibold text-foreground">{member.nuban || 'Pending creation'}</dd>
-            </div>
-            <Separator />
-            <div className="flex justify-between">
-              <dt className="text-muted-foreground">Designated Bank</dt>
-              <dd className="font-medium text-foreground">{member.bank}</dd>
-            </div>
-            <Separator />
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Plots fully paid</dt>
               <dd className="font-medium text-foreground">
@@ -883,8 +812,8 @@ function MemberDrawer({
             </div>
             <Separator />
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">Member since</dt>
-              <dd className="font-medium text-foreground">{formatDate(member.memberSince)}</dd>
+              <dt className="text-muted-foreground">Registration Date (created_at)</dt>
+              <dd className="font-medium text-foreground">{formatDate(member.createdAt || member.memberSince || '')}</dd>
             </div>
           </dl>
 
@@ -1617,7 +1546,7 @@ export function RecordPaymentModal({
               <Input
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
-                placeholder="e.g. WEMA-99482"
+                placeholder="e.g. REF-99482"
                 className="mt-1"
               />
             </div>
