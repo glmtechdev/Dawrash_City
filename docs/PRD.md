@@ -44,7 +44,7 @@ Dawrash City solves all of these.
 ## 4. Non-Goals (V1)
 
 - Automatic payment reconciliation via bank API (manual admin confirmation in V1)
-- In-app payment via card or Paystack (bank transfer only in V1)
+ - In-app payments via Paystack (card) are supported; bank transfers are a legacy fallback requiring manual admin confirmation in V1
 - Member-to-member plot transfers (admin-only process)
 - Mobile native app (web app only, mobile-first responsive)
 - Multiple land projects (Dawrash City only in V1)
@@ -141,6 +141,16 @@ New members landing on `/onboarding/plots` for the first time complete two steps
 - Account name: DAWRASH / [Member Name]
 - NUBAN with one-click copy button
 - Instruction: use your name as transfer narration
+
+> Payments (Paystack)
+>
+> The web app uses Paystack as the primary in-app payment gateway for card payments and instant reconciliation. Members may still use bank transfers as a manual fallback, but Paystack is the recommended route for immediate crediting.
+>
+> Important: Members are responsible for any Paystack processing fees (commission) charged on each transaction. Display the estimated fee to members before they confirm payment and include the fee policy in all payment flows and user-facing help text.
+
+Note: The platform will surface an estimated Paystack commission for full-target payments. If a member chooses to pay their full remaining target in a single transaction, the UI will display the target amount including the estimated Paystack fees so members understand the total they must pay to fully settle their plot(s) in one payment.
+
+Projection tool: The member payment flow includes a simple projection tool to help members plan multiple equal payments. The UI shows per-payment fee estimates, total fees across all projected payments, and the total charged amount (intended + fees). This projection is for planning only — actual fees may vary slightly depending on Paystack rounding and settlement rules.
 
 ### Recent Payments
 - Last 5 transactions fetched live from Supabase `transactions` table

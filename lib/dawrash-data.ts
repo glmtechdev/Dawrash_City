@@ -98,14 +98,14 @@ export const currentMember: Member = {
   bank: '',
   status: 'active',
   transactions: [
-    { id: 't1', date: '2026-08-18', amountKobo: 1_000_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8842' },
-    { id: 't2', date: '2026-07-30', amountKobo: 900_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8611' },
-    { id: 't3', date: '2026-07-02', amountKobo: 800_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8390' },
-    { id: 't4', date: '2026-06-15', amountKobo: 600_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8144' },
-    { id: 't5', date: '2026-05-28', amountKobo: 420_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7902' },
-    { id: 't6', date: '2026-05-10', amountKobo: 300_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7765' },
-    { id: 't7', date: '2026-08-25', amountKobo: 200_000 * 100, method: 'Bank Transfer', status: 'pending', reference: 'DWR-8901' },
-    { id: 't8', date: '2026-04-19', amountKobo: 500_000 * 100, method: 'Card', status: 'failed', reference: 'DWR-7203' },
+    { id: 't1', date: '2026-08-18', amountKobo: 1_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8842' },
+    { id: 't2', date: '2026-07-30', amountKobo: 900_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8611' },
+    { id: 't3', date: '2026-07-02', amountKobo: 800_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8390' },
+    { id: 't4', date: '2026-06-15', amountKobo: 600_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8144' },
+    { id: 't5', date: '2026-05-28', amountKobo: 420_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-7902' },
+    { id: 't6', date: '2026-05-10', amountKobo: 300_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-7765' },
+    { id: 't7', date: '2026-08-25', amountKobo: 200_000 * 100, method: 'Paystack', status: 'pending', reference: 'DWR-8901' },
+    { id: 't8', date: '2026-04-19', amountKobo: 500_000 * 100, method: 'Paystack', status: 'failed', reference: 'DWR-7203' },
   ],
 }
 
@@ -140,8 +140,8 @@ export const members: Member[] = [
     bank: '',
     status: 'completed',
     transactions: [
-      { id: 'g1', date: '2026-08-01', amountKobo: 2_000_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8700' },
-      { id: 'g2', date: '2026-06-01', amountKobo: 2_000_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8100' },
+      { id: 'g1', date: '2026-08-01', amountKobo: 2_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8700' },
+      { id: 'g2', date: '2026-06-01', amountKobo: 2_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8100' },
     ],
   },
   {
@@ -156,8 +156,8 @@ export const members: Member[] = [
     bank: '',
     status: 'active',
     transactions: [
-      { id: 'e1', date: '2026-08-10', amountKobo: 350_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8820' },
-      { id: 'e2', date: '2026-07-11', amountKobo: 500_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8500' },
+      { id: 'e1', date: '2026-08-10', amountKobo: 350_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8820' },
+      { id: 'e2', date: '2026-07-11', amountKobo: 500_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8500' },
     ],
   },
   {
@@ -185,9 +185,9 @@ export const members: Member[] = [
     bank: '',
     status: 'active',
     transactions: [
-      { id: 's1', date: '2026-08-05', amountKobo: 1_200_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8750' },
-      { id: 's2', date: '2026-06-20', amountKobo: 1_500_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8250' },
-      { id: 's3', date: '2026-04-14', amountKobo: 900_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-7600' },
+      { id: 's1', date: '2026-08-05', amountKobo: 1_200_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8750' },
+      { id: 's2', date: '2026-06-20', amountKobo: 1_500_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8250' },
+      { id: 's3', date: '2026-04-14', amountKobo: 900_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-7600' },
     ],
   },
   {
@@ -202,7 +202,7 @@ export const members: Member[] = [
     bank: '',
     status: 'completed',
     transactions: [
-      { id: 'd1', date: '2026-07-25', amountKobo: 2_000_000 * 100, method: 'Bank Transfer', status: 'confirmed', reference: 'DWR-8680' },
+      { id: 'd1', date: '2026-07-25', amountKobo: 2_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8680' },
     ],
   },
 ]

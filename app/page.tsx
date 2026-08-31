@@ -202,7 +202,7 @@ export default function LandingPage() {
                   </span>
                   <h4 className="mt-2.5 font-serif text-base font-bold text-white">Live Savings</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                    Save via bank transfer at your own pace and receive your title certificate upon full payment.
+                    Save via Paystack at your own pace and receive your title certificate upon full payment.
                   </p>
                 </div>
               </div>

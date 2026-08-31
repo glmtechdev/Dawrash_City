@@ -41,14 +41,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Check the is_admin flag on the profile
+  // Check the admin / superadmin flags on the profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_admin')
+    .select('is_admin, is_superadmin')
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!profile?.is_admin) {
+  if (!(profile?.is_admin || profile?.is_superadmin)) {
     const dashboardUrl = request.nextUrl.clone()
     dashboardUrl.pathname = '/dashboard'
     dashboardUrl.search = ''

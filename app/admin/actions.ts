@@ -39,7 +39,7 @@ function mapTransactions(rawTx: Record<string, unknown>[]): Transaction[] {
     id: String(t.id ?? ''),
     date: String(t.paid_at ?? t.created_at ?? new Date().toISOString()),
     amountKobo: Number(t.amount_kobo ?? 0),
-    method: String(t.method ?? 'Bank Transfer'),
+    method: String(t.method ?? 'Paystack'),
     status: (t.status as Transaction['status']) ?? 'confirmed',
     reference: String(t.reference ?? `DWR-${String(t.id).slice(0, 6)}`),
   }))

@@ -45,7 +45,7 @@ export async function getCurrentMemberServer(): Promise<Member> {
       id: t.id,
       date: t.paid_at ?? t.created_at ?? new Date().toISOString(),
       amountKobo: Number(t.amount_kobo ?? 0),
-      method: t.method ?? 'Bank Transfer',
+      method: t.method ?? 'Paystack',
       status: t.status ?? 'confirmed',
       reference: t.reference ?? `DWR-${t.id.slice(0, 4)}`,
     }))
