@@ -9,6 +9,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Dev bypass — no Supabase calls, no network needed ────────────
+  // When DEV_FORCE_EMAIL is set in .env.local, grant unconditional
+  // superadmin access so the /admin dashboard is accessible on localhost
+  // without going through GLM SSO or any outbound network request.
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.DEV_FORCE_EMAIL?.trim()
+  ) {
+    return NextResponse.next()
+  }
+
   // Build a response we can attach cookie mutations to
   const response = NextResponse.next()
 

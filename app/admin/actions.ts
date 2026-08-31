@@ -51,6 +51,17 @@ function mapTransactions(rawTx: Record<string, unknown>[]): Transaction[] {
 /* ------------------------------------------------------------------ */
 
 export async function fetchAdminMembers(): Promise<AdminMember[]> {
+  // ── Dev fallback — no Supabase calls needed ──────────────────────
+  // When DEV_FORCE_EMAIL is set, return the static demo member list so
+  // the admin dashboard renders on localhost without any network access.
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.DEV_FORCE_EMAIL?.trim()
+  ) {
+    const { members } = await import('@/lib/dawrash-data')
+    return members as AdminMember[]
+  }
+
   const supabase = createSupabaseAdminClient()
 
   // Fetch all profiles (service role bypasses RLS).
