@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Empty,
   EmptyContent,
@@ -20,20 +22,30 @@ import {
   type Member,
 } from '@/lib/dawrash-data'
 import { toast } from 'sonner'
-import { Calendar, Receipt } from 'lucide-react'
+import {
+  Calendar,
+  Receipt,
+  CreditCard,
+  Lock,
+  ShieldCheck,
+  CheckCircle2,
+  Clock,
+  Target,
+  Sparkles,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react'
 
 type Filter = 'all' | 'confirmed' | 'pending'
 
 const tabs: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'All' },
+  { value: 'all', label: 'All Payments' },
   { value: 'confirmed', label: 'Confirmed' },
   { value: 'pending', label: 'Pending' },
 ]
 
 function formatDate(iso: string): string {
-  // timeZone: 'UTC' prevents date-only ISO strings from being shifted
-  // into a different calendar day by the user's local timezone, which
-  // would produce a server/client mismatch and trigger a hydration warning.
   return new Date(iso).toLocaleDateString('en-NG', {
     day: '2-digit',
     month: 'short',
@@ -46,28 +58,22 @@ export function TransactionsContent({ member }: { member: Member }) {
   const [filter, setFilter] = useState<Filter>('all')
   const [amount, setAmount] = useState<string>('')
   const [loadingPay, setLoadingPay] = useState(false)
-  const [installments, setInstallments] = useState<number>(1)
+  const [showCalculator, setShowCalculator] = useState(false)
+  const [installments, setInstallments] = useState<number>(3)
 
   const target = targetKobo(member)
   const percent = progressPercent(member)
   const feePercent = Number(process.env.NEXT_PUBLIC_PAYSTACK_FEE_PERCENT ?? '0.015')
   const fixedFeeKobo = Number(process.env.NEXT_PUBLIC_PAYSTACK_FIXED_FEE_KOBO ?? '10000')
-  const targetInclFees = target + Math.round(target * feePercent) + fixedFeeKobo
 
   function calcFeeForKobo(aKobo: number) {
     return Math.round(aKobo * feePercent) + fixedFeeKobo
   }
 
-  const installmentProjection = (() => {
-    const naira = Number(amount)
-    if (!naira || naira <= 0 || installments < 1) return null
-    const totalIntendedKobo = Math.round(naira * 100) * installments
-    const perInstallKobo = Math.round(naira * 100)
-    const perFee = calcFeeForKobo(perInstallKobo)
-    const totalFees = perFee * installments
-    const totalCharged = totalIntendedKobo + totalFees
-    return { perInstallKobo, perFee, totalFees, totalCharged, totalIntendedKobo }
-  })()
+  const numericAmount = Number(amount) || 0
+  const intendedAmountKobo = Math.round(numericAmount * 100)
+  const feeKobo = intendedAmountKobo > 0 ? calcFeeForKobo(intendedAmountKobo) : 0
+  const totalChargeKobo = intendedAmountKobo + feeKobo
 
   const all = [...member.transactions].sort(
     (a, b) => +new Date(b.date) - +new Date(a.date),
@@ -76,316 +82,443 @@ export function TransactionsContent({ member }: { member: Member }) {
     filter === 'all' ? true : t.status === (filter as PaymentStatus),
   )
 
-  const confirmedTotal = all
-    .filter((t) => t.status === 'confirmed')
-    .reduce((s, t) => s + t.amountKobo, 0)
-  const pendingTotal = all
-    .filter((t) => t.status === 'pending')
-    .reduce((s, t) => s + t.amountKobo, 0)
+  const confirmedTransactions = all.filter((t) => t.status === 'confirmed')
+  const pendingTransactions = all.filter((t) => t.status === 'pending')
+
+  const confirmedTotal = confirmedTransactions.reduce((s, t) => s + t.amountKobo, 0)
+  const pendingTotal = pendingTransactions.reduce((s, t) => s + t.amountKobo, 0)
+  const remainingTargetKobo = Math.max(0, target - confirmedTotal)
+
+
+
+  const installmentProjection = (() => {
+    if (!numericAmount || numericAmount <= 0 || installments < 1) return null
+    const perInstallKobo = Math.round(intendedAmountKobo / installments)
+    const perFee = calcFeeForKobo(perInstallKobo)
+    const totalFees = perFee * installments
+    const totalCharged = intendedAmountKobo + totalFees
+    return { perInstallKobo, perFee, totalFees, totalCharged }
+  })()
+
+  async function handlePaystackCheckout() {
+    if (!numericAmount || numericAmount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    setLoadingPay(true)
+    try {
+      const res = await fetch('/api/paystack/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amountKobo: totalChargeKobo,
+          intendedAmountKobo,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data?.error || 'Could not initiate payment')
+        setLoadingPay(false)
+        return
+      }
+
+      const auth = data?.data?.data || data?.data
+      const reference = auth?.reference || auth?.data?.reference || auth?.reference_no || null
+
+      if (typeof window !== 'undefined') {
+        if (!(window as any).PaystackPop) {
+          await new Promise<void>((resolve, reject) => {
+            const script = document.createElement('script')
+            script.src = 'https://js.paystack.co/v1/inline.js'
+            script.onload = () => resolve()
+            script.onerror = () => reject(new Error('Paystack script failed to load'))
+            document.head.appendChild(script)
+          })
+        }
+
+        const pk = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+        if (!(window as any).PaystackPop) {
+          toast.error('Paystack SDK unavailable')
+          setLoadingPay(false)
+          return
+        }
+
+        const handler = (window as any).PaystackPop.setup({
+          key: pk,
+          email: member.email,
+          amount: totalChargeKobo,
+          ref: reference || `dawrash-${Date.now()}`,
+          onClose: () => {
+            toast('Payment session cancelled')
+            setLoadingPay(false)
+          },
+          callback: function () {
+            toast.success('Payment complete! Reconciling in ledger…')
+            window.location.reload()
+          },
+        })
+
+        handler.openIframe()
+      }
+    } catch (err) {
+      console.error('[pay] error', err)
+      toast.error('Payment initiation failed')
+    } finally {
+      setLoadingPay(false)
+    }
+  }
 
   return (
-    <div>
-      <div className="mt-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <h2 className="font-semibold text-foreground">Make a payment</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Quickly contribute toward your target using Paystack. You pay any transaction fees.</p>
-        <div className="mt-3 flex gap-2">
-          <input
-            type="number"
-            min={0}
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Amount (NGN)"
-            className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm text-foreground"
-          />
-          <div className="flex flex-col items-end gap-2">
-            <div className="flex flex-col gap-1">
-              <div className="text-sm text-muted-foreground">
-                <span className="mr-2">Fee: </span>
-                <strong>
-                  {amount && Number(amount) > 0
-                    ? formatNaira(calcFeeForKobo(Math.round(Number(amount) * 100)))
-                    : '-'}
-                </strong>
-                <span className="ml-2 text-xs">(per payment, estimated)</span>
+    <div className="space-y-8 pb-12">
+      {/* ------------------------------------------------------------- */}
+      {/* 1. MAKE A PAYMENT CARD (Redesigned)                           */}
+      {/* ------------------------------------------------------------- */}
+      <div className="rounded-3xl border border-gold/30 bg-card p-5 sm:p-7 shadow-sm">
+        {/* Header */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
+          <div className="flex items-center gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gold/15 text-gold">
+              <CreditCard className="size-5" />
+            </div>
+            <div>
+              <h2 className="font-serif text-lg font-bold text-foreground sm:text-xl">
+                Make a Plot Contribution
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Instant card, USSD, or transfer payment processed securely via Paystack.
+              </p>
+            </div>
+          </div>
+
+          <Badge variant="outline" className="w-fit border-gold/40 bg-gold/5 text-gold text-xs font-semibold px-3 py-1">
+            <ShieldCheck className="mr-1.5 size-3.5" />
+            Secured by Paystack
+          </Badge>
+        </div>
+
+        {/* Form Body */}
+        <div className="mt-5 space-y-5">
+          {/* Amount Input */}
+          <div>
+            <label className="text-xs font-semibold text-foreground">
+              Contribution Amount (NGN)
+            </label>
+            <div className="relative mt-1.5">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-serif text-base font-bold text-muted-foreground">
+                ₦
+              </span>
+              <Input
+                type="number"
+                min={500}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount (e.g. 500,000)"
+                className="h-12 rounded-2xl pl-9 text-base font-semibold"
+              />
+            </div>
+          </div>
+
+          {/* Fee & Breakdown Card */}
+          {numericAmount > 0 && (
+            <div className="rounded-2xl border border-border bg-muted/40 p-4 text-xs">
+              <div className="flex justify-between py-1">
+                <span className="text-muted-foreground">Plot Savings Credit</span>
+                <span className="font-semibold text-foreground">{formatNaira(intendedAmountKobo)}</span>
               </div>
-              <div className="text-sm text-muted-foreground">
-                <span className="mr-2">Total charged (single): </span>
-                <strong>
-                  {amount && Number(amount) > 0
-                    ? formatNaira(Math.round(Number(amount) * 100) + calcFeeForKobo(Math.round(Number(amount) * 100)))
-                    : '-'}
-                </strong>
+              <div className="flex justify-between py-1 border-t border-border/50">
+                <span className="text-muted-foreground">Processing Fee (Paystack)</span>
+                <span className="font-medium text-muted-foreground">{formatNaira(feeKobo)}</span>
+              </div>
+              <div className="flex justify-between py-1.5 border-t border-border font-semibold text-sm">
+                <span className="text-foreground">Total to be Charged</span>
+                <span className="text-gold font-serif text-base">{formatNaira(totalChargeKobo)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Installment Projection Toggle */}
+          <div className="rounded-2xl border border-border/70 bg-card p-3.5">
+            <button
+              type="button"
+              onClick={() => setShowCalculator(!showCalculator)}
+              className="flex w-full items-center justify-between text-xs font-semibold text-foreground hover:text-gold"
+            >
+              <div className="flex items-center gap-2">
+                <Calculator className="size-4 text-gold" />
+                <span>Calculate Installment Breakdown (Optional)</span>
+              </div>
+              {showCalculator ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </button>
+
+            {showCalculator && (
+              <div className="mt-3.5 border-t border-border pt-3 space-y-3">
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">
+                    Number of Installments:
+                  </label>
+                  <div className="flex gap-1.5">
+                    {[2, 3, 6, 12].map((num) => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => setInstallments(num)}
+                        className={cn(
+                          'size-8 rounded-full text-xs font-bold transition-colors',
+                          installments === num
+                            ? 'bg-gold text-gold-foreground'
+                            : 'bg-muted text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {installmentProjection ? (
+                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-3 text-xs sm:grid-cols-4">
+                    <div>
+                      <p className="text-muted-foreground">Per Payment</p>
+                      <p className="font-semibold text-foreground">{formatNaira(installmentProjection.perInstallKobo)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Est. Fee/Pay</p>
+                      <p className="font-semibold text-foreground">{formatNaira(installmentProjection.perFee)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Fees</p>
+                      <p className="font-semibold text-foreground">{formatNaira(installmentProjection.totalFees)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Project</p>
+                      <p className="font-bold text-gold">{formatNaira(installmentProjection.totalCharged)}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Enter an amount above to see installment breakdown.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Action Button */}
+          <Button
+            type="button"
+            disabled={loadingPay || numericAmount <= 0}
+            onClick={handlePaystackCheckout}
+            className="h-12 w-full rounded-2xl bg-gold text-base font-bold text-gold-foreground hover:bg-gold/90 shadow-md transition-transform active:scale-[0.99]"
+          >
+            <Lock className="mr-2 size-4" />
+            {loadingPay ? (
+              'Processing Paystack Checkout…'
+            ) : numericAmount > 0 ? (
+              `Pay ${formatNaira(totalChargeKobo)} with Paystack`
+            ) : (
+              'Enter Amount to Pay'
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------- */}
+      {/* 2. PAYMENT HISTORY & SUMMARY METRICS (Redesigned)              */}
+      {/* ------------------------------------------------------------- */}
+      <div className="space-y-4">
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Payment History
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Track all automated Paystack contributions and manual church bank transfers.
+          </p>
+        </div>
+
+        {/* 3 Metric Summary Cards */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {/* Total Saved */}
+          <div className="flex flex-col justify-between rounded-3xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Total Saved
+              </span>
+              <span className="flex size-7 items-center justify-center rounded-full bg-success/10 text-success">
+                <CheckCircle2 className="size-4" />
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="font-serif text-2xl font-bold text-success">
+                {formatNaira(confirmedTotal)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {confirmedTransactions.length} confirmed payment{confirmedTransactions.length === 1 ? '' : 's'}
+              </p>
+            </div>
+          </div>
+
+          {/* Pending Verification */}
+          <div className="flex flex-col justify-between rounded-3xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Pending Verification
+              </span>
+              <span className="flex size-7 items-center justify-center rounded-full bg-warning/10 text-warning">
+                <Clock className="size-4" />
+              </span>
+            </div>
+            <div className="mt-3">
+              <p className="font-serif text-2xl font-bold text-warning">
+                {pendingTotal > 0 ? formatNaira(pendingTotal) : '₦0'}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {pendingTransactions.length > 0
+                  ? `${pendingTransactions.length} awaiting confirmation`
+                  : 'All transactions settled'}
+              </p>
+            </div>
+          </div>
+
+          {/* Savings Progress */}
+          <div className="flex flex-col justify-between rounded-3xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Plot Progress
+              </span>
+              <span className="flex size-7 items-center justify-center rounded-full bg-gold/10 text-gold">
+                <Target className="size-4" />
+              </span>
+            </div>
+            <div className="mt-3">
+              <div className="flex items-baseline justify-between">
+                <p className="font-serif text-2xl font-bold text-gold">{percent}%</p>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  of {formatNaira(target)}
+                </span>
+              </div>
+              <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-gold transition-all duration-500"
+                  style={{ width: `${percent}%` }}
+                />
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={async () => {
-              const naira = Number(amount)
-              if (!naira || naira <= 0) return toast.error('Enter a valid amount')
-              setLoadingPay(true)
-              try {
-                const amountKobo = Math.round(naira * 100)
-
-                // Fee settings (NEXT_PUBLIC inlined)
-                const feePercent = Number(process.env.NEXT_PUBLIC_PAYSTACK_FEE_PERCENT ?? '0.015')
-                const fixedFeeKobo = Number(process.env.NEXT_PUBLIC_PAYSTACK_FIXED_FEE_KOBO ?? '10000')
-
-                const feeKobo = Math.round(amountKobo * feePercent) + fixedFeeKobo
-                const totalChargeKobo = amountKobo + feeKobo
-
-                const res = await fetch('/api/paystack/initiate', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ amountKobo: totalChargeKobo, intendedAmountKobo: amountKobo }),
-                })
-                const data = await res.json()
-                if (!res.ok) {
-                  console.error('[pay] initiate error', data)
-                  toast.error(data?.error || 'Could not start payment')
-                  setLoadingPay(false)
-                  return
-                }
-
-                const auth = data?.data?.data || data?.data
-                const reference = auth?.reference || auth?.data?.reference || auth?.reference_no || null
-                // Load Paystack inline script if needed
-                if (typeof window !== 'undefined') {
-                  if (!(window as any).PaystackPop) {
-                    await new Promise<void>((resolve, reject) => {
-                      const script = document.createElement('script')
-                      script.src = 'https://js.paystack.co/v1/inline.js'
-                      script.onload = () => resolve()
-                      script.onerror = () => reject(new Error('Paystack script failed to load'))
-                      document.head.appendChild(script)
-                    })
-                  }
-
-                  const pk = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
-                  if (!(window as any).PaystackPop) {
-                    toast.error('Paystack not available')
-                    setLoadingPay(false)
-                    return
-                  }
-
-                  const handler = (window as any).PaystackPop.setup({
-                    key: pk,
-                    email: member.email,
-                    amount: totalChargeKobo,
-                    ref: reference || `dawrash-${Date.now()}`,
-                    onClose: () => {
-                      toast('Payment closed')
-                    },
-                    callback: function (resp: any) {
-                      // resp contains reference and status; server webhook will reconcile.
-                      toast.success('Payment complete - awaiting confirmation')
-                      // Optionally refresh or navigate to transactions
-                      window.location.reload()
-                    },
-                  })
-
-                  handler.openIframe()
-                }
-              } catch (err) {
-                console.error('[pay] unexpected', err)
-                toast.error('Payment initiation failed')
-              } finally {
-                setLoadingPay(false)
-              }
-            }}
-            disabled={loadingPay}
-            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-gold px-6 py-2.5 text-sm font-semibold text-gold-foreground disabled:opacity-60"
-          >
-            {loadingPay ? 'Processing…' : 'Pay with Paystack'}
-          </button>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 items-end">
-          <div>
-            <label className="text-xs text-muted-foreground">Installments (equal)</label>
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={installments}
-              onChange={(e) => setInstallments(Math.max(1, Number(e.target.value) || 1))}
-              className="mt-1 w-32 rounded-md border border-border bg-transparent px-2 py-1 text-sm text-foreground"
-            />
-          </div>
-          <div className="text-sm text-muted-foreground">
-            <div>Projection:</div>
-            {installmentProjection ? (
-              <div className="mt-1">
-                <div>Per payment (net): {formatNaira(installmentProjection.perInstallKobo)}</div>
-                <div>Per fee (est): {formatNaira(installmentProjection.perFee)}</div>
-                <div>Total fees: {formatNaira(installmentProjection.totalFees)}</div>
-                <div className="font-semibold">Total charged: {formatNaira(installmentProjection.totalCharged)}</div>
-              </div>
-            ) : (
-              <div className="mt-1">Enter amount and installments to see projection.</div>
-            )}
-          </div>
-        </div>
-      </div>
-      <div>
-        <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">
-          Payment History
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Every transfer recorded toward your Dawrash City land.
-        </p>
-      </div>
-
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Total Saved
-          </p>
-          <p className="mt-1 font-serif text-sm font-bold text-success break-all">
-            {formatNaira(confirmedTotal)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Pending
-          </p>
-          <p className="mt-1 font-serif text-sm font-bold text-warning break-all">
-            {pendingTotal > 0 ? formatNaira(pendingTotal) : '-'}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Progress
-          </p>
-          <p className="mt-1 font-serif text-sm font-bold text-gold">
-            {percent}%
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            of {formatNaira(target)}
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            If paid in one payment (incl. est. Paystack fees): {formatNaira(targetInclFees)}
-          </p>
         </div>
       </div>
 
-      <div className="mt-4 h-4 overflow-hidden rounded-full bg-muted">
-        <div
-          className="h-full rounded-full bg-gold transition-all"
-          style={{ width: `${percent}%` }}
-          role="progressbar"
-          aria-valuenow={percent}
-          aria-valuemin={0}
-          aria-valuemax={100}
-        />
-      </div>
-
-      <div className="mt-6 inline-flex rounded-full border border-border bg-card p-1">
-        {tabs.map((t) => {
-          const count = all.filter((tx) =>
-            t.value === 'all' ? true : tx.status === t.value,
-          ).length
-          return (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setFilter(t.value)}
-              className={cn(
-                'rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
-                filter === t.value
-                  ? 'bg-gold text-gold-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t.label}
-              {count > 0 && t.value !== 'all' && (
-                <span
+      {/* ------------------------------------------------------------- */}
+      {/* 3. TRANSACTION LIST & FILTERS                                 */}
+      {/* ------------------------------------------------------------- */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="inline-flex rounded-full border border-border bg-card p-1">
+            {tabs.map((t) => {
+              const count = all.filter((tx) =>
+                t.value === 'all' ? true : tx.status === t.value,
+              ).length
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  onClick={() => setFilter(t.value)}
                   className={cn(
-                    'ml-1.5 inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold',
+                    'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors',
                     filter === t.value
-                      ? 'bg-white/25 text-gold-foreground'
-                      : 'bg-muted text-muted-foreground',
+                      ? 'bg-gold text-gold-foreground font-semibold shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {count}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
+                  <span>{t.label}</span>
+                  {count > 0 && (
+                    <span
+                      className={cn(
+                        'inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold',
+                        filter === t.value
+                          ? 'bg-black/20 text-gold-foreground'
+                          : 'bg-muted text-muted-foreground',
+                      )}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
-      {list.length === 0 ? (
-        <Empty className="mt-6 rounded-3xl border border-border bg-card py-16">
-          <EmptyHeader>
-            <EmptyMedia variant="icon" className="bg-accent text-gold">
-              <Receipt />
-            </EmptyMedia>
-            <EmptyTitle className="font-serif text-lg font-bold">No payments yet</EmptyTitle>
-            <EmptyDescription>
+        {list.length === 0 ? (
+          <Empty className="rounded-3xl border border-border bg-card py-14">
+            <EmptyHeader>
+              <EmptyMedia variant="icon" className="size-12 bg-accent text-gold">
+                <Receipt className="size-6" />
+              </EmptyMedia>
+              <EmptyTitle className="font-serif text-lg font-bold">No payments found</EmptyTitle>
+              <EmptyDescription>
                 {filter === 'all'
-                  ? 'Make your first payment via Paystack to get started.'
-                  : `No ${filter} payments found.`}
-            </EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent />
-        </Empty>
-      ) : (
-        <ul className="mt-4 flex flex-col gap-2.5">
-          {list.map((t) => (
-            <li
-              key={t.id}
-              className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <div className="flex items-center gap-3.5">
-                <span
-                  className={cn(
-                    'flex size-11 shrink-0 items-center justify-center rounded-xl',
-                    t.status === 'confirmed'
-                      ? 'bg-success/10 text-success'
-                      : t.status === 'pending'
-                        ? 'bg-warning/10 text-warning'
-                        : 'bg-destructive/10 text-destructive',
-                  )}
-                >
-                  <Calendar className="size-5" aria-hidden />
-                </span>
-                <div>
-                  <p className="font-semibold text-foreground">{formatDate(t.date)}</p>
+                  ? 'Make your first plot contribution above to get started.'
+                  : `No ${filter} payments found in your history.`}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent />
+          </Empty>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {list.map((t) => (
+              <li
+                key={t.id}
+                className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex items-center gap-3.5">
+                  <span
+                    className={cn(
+                      'flex size-11 shrink-0 items-center justify-center rounded-2xl',
+                      t.status === 'confirmed'
+                        ? 'bg-success/10 text-success'
+                        : t.status === 'pending'
+                          ? 'bg-warning/10 text-warning'
+                          : 'bg-destructive/10 text-destructive',
+                    )}
+                  >
+                    <Calendar className="size-5" aria-hidden />
+                  </span>
+                  <div>
+                    <p className="font-semibold text-foreground">{formatDate(t.date)}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
                       <Badge
                         variant="outline"
-                        className="rounded-full text-xs font-normal text-muted-foreground"
+                        className="rounded-full text-[11px] font-medium border-border"
                       >
                         {t.method}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{t.reference}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">{t.reference}</span>
                     </div>
+                  </div>
                 </div>
-              </div>
-                <div className="flex flex-col items-end gap-1.5">
-                <p
-                  className={cn(
-                    'font-bold',
-                    t.status === 'confirmed'
-                      ? 'text-success'
-                      : t.status === 'failed'
-                        ? 'text-destructive line-through opacity-60'
-                        : 'text-foreground',
-                  )}
-                >
-                  {formatNaira(t.amountKobo)}
-                </p>
-                  {t.method === 'Paystack' && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Fee est: {formatNaira(calcFeeForKobo(t.amountKobo))} · Charged: {formatNaira(t.amountKobo + calcFeeForKobo(t.amountKobo))}
-                    </p>
-                  )}
-                <PaymentBadge status={t.status} />
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+
+                <div className="flex items-center justify-between border-t border-border pt-2 sm:border-t-0 sm:pt-0 sm:flex-col sm:items-end sm:gap-1.5">
+                  <p
+                    className={cn(
+                      'font-serif text-base font-bold',
+                      t.status === 'confirmed'
+                        ? 'text-success'
+                        : t.status === 'failed'
+                          ? 'text-destructive line-through opacity-60'
+                          : 'text-foreground',
+                    )}
+                  >
+                    {formatNaira(t.amountKobo)}
+                  </p>
+                  <PaymentBadge status={t.status} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   )
 }

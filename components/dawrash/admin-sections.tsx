@@ -246,17 +246,17 @@ export function OverviewSection({
               <Wallet className="size-5" />
             </span>
             <Badge variant="outline" className="border-success/30 bg-success/5 text-success text-[11px]">
-              {overallProgress}% funded
+              {overallProgress}% of committed target
             </Badge>
           </div>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Total Collected
+            Total Inflows Collected
           </p>
           <p className="mt-1 font-serif text-2xl font-bold text-foreground">
             {formatNaira(totalCollectedKobo)}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            of {formatNaira(totalTargetKobo)} total target
+            of {formatNaira(totalTargetKobo)} subscribed target
           </p>
         </div>
 
@@ -276,11 +276,11 @@ export function OverviewSection({
           <p className="mt-1 font-serif text-2xl font-bold text-foreground">
             {totalPlotsReserved.toLocaleString()}{' '}
             <span className="text-sm font-normal text-muted-foreground">
-              / {TOTAL_PROJECT_PLOTS.toLocaleString()} Plots
+              / {TOTAL_PROJECT_PLOTS.toLocaleString()} Master Plan Plots
             </span>
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {totalPlotsPaid} fully paid · {(TOTAL_PROJECT_PLOTS - totalPlotsReserved).toLocaleString()} remaining in master plan
+            {totalPlotsPaid} fully paid · {(TOTAL_PROJECT_PLOTS - totalPlotsReserved).toLocaleString()} unallocated plots
           </p>
         </div>
 
@@ -697,17 +697,17 @@ export function MemberDrawer({
 
   return (
     <Sheet open={!!member} onOpenChange={(open) => (!open ? onClose() : null)}>
-      <SheetContent className="flex w-full flex-col overflow-y-auto sm:max-w-lg">
-        <SheetHeader className="pb-0 text-left">
-          <div className="flex items-center gap-3">
-            <Avatar className="size-12 border-2 border-gold/30">
+      <SheetContent className="flex w-full flex-col overflow-y-auto p-0 sm:max-w-lg">
+        <SheetHeader className="p-6 pb-4 sm:p-7 sm:pb-4 text-left border-b border-border/60">
+          <div className="flex items-center gap-3.5 pr-8">
+            <Avatar className="size-12 border-2 border-gold/30 shrink-0">
               <AvatarFallback className="bg-accent font-serif text-lg font-bold text-gold">
                 {member.initials}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <SheetTitle className="font-serif text-xl">{member.name}</SheetTitle>
-              <SheetDescription className="text-xs">{member.email}</SheetDescription>
+              <SheetTitle className="font-serif text-xl leading-tight truncate">{member.name}</SheetTitle>
+              <SheetDescription className="text-xs truncate">{member.email}</SheetDescription>
             </div>
           </div>
 
@@ -726,7 +726,7 @@ export function MemberDrawer({
           </div>
         </SheetHeader>
 
-        <div className="flex flex-1 flex-col gap-5 pb-8">
+        <div className="flex flex-1 flex-col gap-6 p-6 sm:p-7 pb-10">
           {/* Savings Dial Card */}
           <div className="rounded-2xl bg-secondary p-5 text-secondary-foreground">
             <div className="flex items-center justify-between">
@@ -1005,11 +1005,16 @@ export function TransactionsSection({
             {filtered.map((t) => (
               <li
                 key={t.id}
-                className="grid grid-cols-2 items-center gap-4 px-6 py-4 lg:grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_1fr]"
+                className="flex flex-col gap-3 px-5 py-4 sm:grid sm:grid-cols-2 lg:grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_1fr] lg:items-center lg:gap-4 lg:px-6"
               >
-                <div>
-                  <p className="font-mono text-xs font-bold text-foreground">{t.reference}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{t.method}</p>
+                <div className="flex items-center justify-between sm:block">
+                  <div>
+                    <p className="font-mono text-xs font-bold text-foreground">{t.reference}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{t.method}</p>
+                  </div>
+                  <div className="sm:hidden">
+                    <PaymentBadge status={t.status} />
+                  </div>
                 </div>
 
                 <div>
@@ -1022,25 +1027,27 @@ export function TransactionsSection({
                   {t.notes && <p className="truncate text-[10px] text-muted-foreground/80">{t.notes}</p>}
                 </div>
 
-                <div>
-                  <p className="font-serif font-bold text-success">{formatNaira(t.amountKobo)}</p>
-                  {t.feeKobo ? (
-                    <p className="text-[10px] text-muted-foreground">Fee: {formatNaira(t.feeKobo)}</p>
-                  ) : null}
+                <div className="flex items-baseline justify-between sm:block">
+                  <div>
+                    <p className="font-serif font-bold text-success text-base sm:text-sm">{formatNaira(t.amountKobo)}</p>
+                    {t.feeKobo ? (
+                      <p className="text-[10px] text-muted-foreground">Fee: {formatNaira(t.feeKobo)}</p>
+                    ) : null}
+                  </div>
                 </div>
 
-                <div>
+                <div className="hidden sm:block">
                   <PaymentBadge status={t.status} />
                 </div>
 
-                <div className="col-span-2 flex items-center justify-end gap-1.5 lg:col-span-1">
+                <div className="flex items-center justify-end gap-1.5 border-t border-border/50 pt-2 sm:border-t-0 sm:pt-0 sm:col-span-2 lg:col-span-1">
                   {t.status === 'pending' && (
                     <>
                       <Button
                         size="sm"
                         disabled={confirmingId === t.id}
                         onClick={() => handleUpdateStatus(t.id, 'confirmed')}
-                        className="h-7 rounded-full bg-success text-success-foreground text-xs px-2.5"
+                        className="h-7 rounded-full bg-success text-success-foreground text-xs px-3"
                       >
                         Confirm
                       </Button>
@@ -1049,7 +1056,7 @@ export function TransactionsSection({
                         size="sm"
                         disabled={confirmingId === t.id}
                         onClick={() => handleUpdateStatus(t.id, 'failed')}
-                        className="h-7 rounded-full text-destructive text-xs px-2.5 hover:bg-destructive/10"
+                        className="h-7 rounded-full text-destructive text-xs px-3 hover:bg-destructive/10"
                       >
                         Reject
                       </Button>
