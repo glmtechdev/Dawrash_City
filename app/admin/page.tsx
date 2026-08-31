@@ -1,26 +1,26 @@
 import { redirect } from 'next/navigation'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { fetchAdminMembers } from '@/app/admin/actions'
+import { fetchAdminDashboardData } from '@/app/admin/actions'
 import { AdminClient } from '@/app/admin/admin-client'
 
+export const dynamic = 'force-dynamic'
+
 /**
- * Admin page - server component.
- * Middleware already blocks non-admins, but we double-check here for safety
- * before fetching all member data with the service-role client.
+ * Superadmin Console - Server Component.
+ * Guards access to verified admins/superadmins and fetches
+ * live data for all 4 tables (profiles, transactions, audit_flags, certificates).
  */
 export default async function AdminPage() {
-  // ── Dev bypass — no Supabase calls needed ───────────────────────
-  // When DEV_FORCE_EMAIL is set, middleware already let us through.
-  // Skip auth checks and load members (which also has a dev fallback).
+  // ── Dev bypass — no Supabase network calls needed ────────────────
   if (
     process.env.NODE_ENV === 'development' &&
     process.env.DEV_FORCE_EMAIL?.trim()
   ) {
-    const members = await fetchAdminMembers()
-    return <AdminClient members={members} />
+    const dashboardData = await fetchAdminDashboardData()
+    return <AdminClient initialData={dashboardData} />
   }
 
-  // ── Production path ──────────────────────────────────────────────
+  // ── Production session guard ─────────────────────────────────────
   const supabase = await createSupabaseServerClient()
 
   const {
@@ -35,9 +35,11 @@ export default async function AdminPage() {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (!(profile?.is_admin || profile?.is_superadmin)) redirect('/dashboard')
+  if (!(profile?.is_admin || profile?.is_superadmin)) {
+    redirect('/dashboard')
+  }
 
-  const members = await fetchAdminMembers()
+  const dashboardData = await fetchAdminDashboardData()
 
-  return <AdminClient members={members} />
+  return <AdminClient initialData={dashboardData} />
 }

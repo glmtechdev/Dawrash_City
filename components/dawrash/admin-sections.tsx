@@ -1,20 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
+import { useMemo, useState } from 'react'
 import { ProgressRing } from '@/components/dawrash/progress-ring'
 import { MemberBadge, PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Sheet,
   SheetContent,
@@ -44,12 +43,24 @@ import { toast } from 'sonner'
 import {
   formatNaira,
   plotLabel,
-  savedKobo,
   targetKobo,
-  type Member,
   type MemberStatus,
+  type PaymentStatus,
   PRICE_PER_PLOT_KOBO,
 } from '@/lib/dawrash-data'
+import {
+  type AdminMember,
+  type AdminTransaction,
+  type AdminAuditFlag,
+  type AdminCertificate,
+  recordManualTransactionAction,
+  updateTransactionStatusAction,
+  issueCertificateAction,
+  updateCertificateDeliveryAction,
+  resolveAuditFlagAction,
+  updateMemberAdminRoleAction,
+  updateMemberPlotsAction,
+} from '@/app/admin/actions'
 import {
   Users,
   Wallet,
@@ -57,22 +68,28 @@ import {
   TrendingUp,
   Search,
   CheckCircle2,
-  Flag,
+  AlertTriangle,
   ChevronRight,
   CalendarDays,
   ScrollText,
   LandPlot,
-  AlertTriangle,
+  Receipt,
+  Download,
+  PlusCircle,
+  ShieldCheck,
+  ShieldAlert,
+  Building2,
+  Clock,
+  ExternalLink,
+  Edit3,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
-/*  Shared helpers                                                      */
+/*  Shared helpers                                                    */
 /* ------------------------------------------------------------------ */
 
 function formatDate(iso: string): string {
-  // timeZone: 'UTC' prevents date-only ISO strings from being shifted
-  // into a different calendar day by the user's local timezone, which
-  // would produce a server/client mismatch and trigger a hydration warning.
+  if (!iso) return 'N/A'
   return new Date(iso).toLocaleDateString('en-NG', {
     day: '2-digit',
     month: 'short',
@@ -82,226 +99,414 @@ function formatDate(iso: string): string {
 }
 
 function percent(a: number, b: number) {
-  if (b === 0) return 0
+  if (b <= 0) return 0
   return Math.min(100, Math.round((a / b) * 100))
 }
 
-function useIsClient() {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
-  return mounted
+function memberSavedKobo(member: AdminMember): number {
+  return member.transactions
+    .filter((t) => t.status === 'confirmed')
+    .reduce((sum, t) => sum + t.amountKobo, 0)
 }
 
-/* ------------------------------------------------------------------ */
-/*  Overview                                                            */
-/* ------------------------------------------------------------------ */
+function downloadCsv(filename: string, csvContent: string) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+}
 
-export function OverviewSection({ members }: { members: Member[] }) {
-  const isClient = useIsClient()
+/* ================================================================== */
+/*  1. OVERVIEW SECTION                                               */
+/* ================================================================== */
+
+export function OverviewSection({
+  members,
+  transactions,
+  auditFlags,
+  certificates,
+  onNavigate,
+  onOpenRecordPayment,
+}: {
+  members: AdminMember[]
+  transactions: AdminTransaction[]
+  auditFlags: AdminAuditFlag[]
+  certificates: AdminCertificate[]
+  onNavigate: (section: 'members' | 'transactions' | 'certificates' | 'audit') => void
+  onOpenRecordPayment: (memberId?: string) => void
+}) {
   const totalMembers = members.length
-  const totalCollected = members.reduce((sum, m) => sum + savedKobo(m), 0)
-  const totalTarget = members.reduce((sum, m) => sum + targetKobo(m), 0)
-  const overall = percent(totalCollected, totalTarget)
+  const totalTargetKobo = members.reduce((sum, m) => sum + targetKobo(m), 0)
+
+  const confirmedTx = transactions.filter((t) => t.status === 'confirmed')
+  const totalCollectedKobo = confirmedTx.reduce((sum, t) => sum + t.amountKobo, 0)
+
+  const pendingTx = transactions.filter((t) => t.status === 'pending')
+  const totalPendingKobo = pendingTx.reduce((sum, t) => sum + t.amountKobo, 0)
+
+  const overallProgress = percent(totalCollectedKobo, totalTargetKobo)
+  const totalPlotsReserved = members.reduce((s, m) => s + m.plots, 0)
+  const totalPlotsPaid = Math.floor(totalCollectedKobo / PRICE_PER_PLOT_KOBO)
 
   const byStatus: Record<MemberStatus, number> = {
     active: 0,
     completed: 0,
     pending_covenant: 0,
   }
-  members.forEach((m) => { byStatus[m.status] += 1 })
+  members.forEach((m) => {
+    byStatus[m.status] = (byStatus[m.status] || 0) + 1
+  })
 
-  const chartData = members.map((m) => ({
-    name: m.name.split(' ')[0],
-    paid: Math.round(savedKobo(m) / 100_000) / 10,
-    target: Math.round(targetKobo(m) / 100_000) / 10,
-  }))
+  const openFlagsCount = auditFlags.filter((f) => !f.resolved).length
+  const pendingCertsCount = members.filter((m) => m.status === 'completed' || memberSavedKobo(m) >= targetKobo(m)).length
 
-  const stats = [
-    {
-      icon: Users,
-      label: 'Members',
-      value: totalMembers.toString(),
-      sub: `${byStatus.active} active`,
-    },
-    {
-      icon: Wallet,
-      label: 'Total Collected',
-      value: formatNaira(totalCollected),
-      sub: `${overall}% of goal`,
-    },
-    {
-      icon: Target,
-      label: 'Total Target',
-      value: formatNaira(totalTarget),
-      sub: `${members.reduce((s, m) => s + m.plots, 0)} plots reserved`,
-    },
-    {
-      icon: TrendingUp,
-      label: 'Completed',
-      value: byStatus.completed.toString(),
-      sub: 'fully paid',
-    },
-  ]
+  // Export handlers
+  function exportMembersCsv() {
+    const headers = ['ID', 'Name', 'Email', 'Status', 'Plots', 'Paid (NGN)', 'Target (NGN)', 'NUBAN', 'Bank', 'Covenant Signed']
+    const rows = members.map((m) => {
+      const paid = memberSavedKobo(m) / 100
+      const tgt = targetKobo(m) / 100
+      return [
+        `"${m.id}"`,
+        `"${m.name}"`,
+        `"${m.email}"`,
+        `"${m.status}"`,
+        m.plots,
+        paid,
+        tgt,
+        `"${m.nuban}"`,
+        `"${m.bank}"`,
+        m.covenantSignedAt ? `"${formatDate(m.covenantSignedAt)}"` : '"Not signed"',
+      ].join(',')
+    })
+    const csv = [headers.join(','), ...rows].join('\n')
+    downloadCsv(`dawrash-members-${new Date().toISOString().split('T')[0]}.csv`, csv)
+    toast.success('Members ledger exported to CSV')
+  }
+
+  function exportTransactionsCsv() {
+    const headers = ['Reference', 'Member Name', 'Member Email', 'Amount (NGN)', 'Method', 'Status', 'Paid At', 'Notes']
+    const rows = transactions.map((t) => [
+      `"${t.reference}"`,
+      `"${t.memberName || 'N/A'}"`,
+      `"${t.memberEmail || 'N/A'}"`,
+      t.amountKobo / 100,
+      `"${t.method}"`,
+      `"${t.status}"`,
+      `"${t.paidAt}"`,
+      `"${t.notes || ''}"`,
+    ].join(','))
+    const csv = [headers.join(','), ...rows].join('\n')
+    downloadCsv(`dawrash-transactions-${new Date().toISOString().split('T')[0]}.csv`, csv)
+    toast.success('Transactions ledger exported to CSV')
+  }
 
   return (
-    <div>
-      <div>
-        <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">Overview</h1>
-        <p className="mt-1 text-muted-foreground">
-          Programme-wide savings across all Dawrash City members.
-        </p>
+    <div className="space-y-6">
+      {/* Header & Quick Action Bar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Executive Overview
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Dawrash City land savings program financial & member summary.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            onClick={() => onOpenRecordPayment()}
+            className="rounded-full bg-gold font-semibold text-gold-foreground hover:bg-gold/90 shadow-sm"
+          >
+            <PlusCircle className="mr-1.5 size-4" />
+            Record Payment
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={exportTransactionsCsv}
+            className="rounded-full border-border hover:bg-accent"
+          >
+            <Download className="mr-1.5 size-3.5" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => {
-          const Icon = s.icon
-          return (
-            <div
-              key={s.label}
-              className="rounded-3xl border border-border bg-card p-5 shadow-sm"
-            >
-              <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-gold">
-                <Icon className="size-5" aria-hidden />
-              </span>
-              <p className="mt-4 text-sm text-muted-foreground">{s.label}</p>
-              <p className="mt-0.5 font-serif text-2xl font-bold text-foreground">{s.value}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{s.sub}</p>
-            </div>
-          )
-        })}
+      {/* KPI Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Total Collected */}
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-success/10 text-success">
+              <Wallet className="size-5" />
+            </span>
+            <Badge variant="outline" className="border-success/30 bg-success/5 text-success text-[11px]">
+              {overallProgress}% funded
+            </Badge>
+          </div>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Total Collected
+          </p>
+          <p className="mt-1 font-serif text-2xl font-bold text-foreground">
+            {formatNaira(totalCollectedKobo)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            of {formatNaira(totalTargetKobo)} total target
+          </p>
+        </div>
+
+        {/* Plots Allocation */}
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-gold/10 text-gold">
+              <LandPlot className="size-5" />
+            </span>
+            <span className="text-xs font-semibold text-gold">₦2.0M / plot</span>
+          </div>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Plots Status
+          </p>
+          <p className="mt-1 font-serif text-2xl font-bold text-foreground">
+            {totalPlotsPaid} / {totalPlotsReserved}{' '}
+            <span className="text-sm font-normal text-muted-foreground">Plots Paid</span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {totalPlotsReserved - totalPlotsPaid} plots remaining in progress
+          </p>
+        </div>
+
+        {/* Registered Members */}
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-accent text-gold">
+              <Users className="size-5" />
+            </span>
+            <span className="text-xs text-muted-foreground">{byStatus.completed} fully paid</span>
+          </div>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Church Savers
+          </p>
+          <p className="mt-1 font-serif text-2xl font-bold text-foreground">
+            {totalMembers}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {byStatus.active} active · {byStatus.pending_covenant} pending covenant
+          </p>
+        </div>
+
+        {/* Operational Health */}
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className={cn(
+              'flex size-10 items-center justify-center rounded-xl',
+              openFlagsCount > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'
+            )}>
+              {openFlagsCount > 0 ? <AlertTriangle className="size-5" /> : <CheckCircle2 className="size-5" />}
+            </span>
+            {totalPendingKobo > 0 && (
+              <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning text-[10px]">
+                {formatNaira(totalPendingKobo)} pending
+              </Badge>
+            )}
+          </div>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Audit Discrepancies
+          </p>
+          <p className="mt-1 font-serif text-2xl font-bold text-foreground">
+            {openFlagsCount}{' '}
+            <span className="text-xs font-normal text-muted-foreground">Open flags</span>
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {openFlagsCount === 0 ? 'All transactions reconciled' : 'Requires review in Audit tab'}
+          </p>
+        </div>
       </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_auto]">
+      {/* Breakdown & Progress Rings */}
+      <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+        {/* Status Breakdown Card */}
         <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="font-serif text-lg font-bold text-foreground">Members by Status</h2>
-          <div className="mt-5 flex flex-col gap-4">
-            {(
-              [
-                { key: 'active' as MemberStatus,           label: 'Active',           cls: 'bg-gold' },
-                { key: 'completed' as MemberStatus,        label: 'Completed',        cls: 'bg-success' },
-                { key: 'pending_covenant' as MemberStatus, label: 'Pending Covenant', cls: 'bg-warning' },
-              ] as const
-            ).map((b) => (
-              <div key={b.key}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">{b.label}</span>
-                  <span className="text-muted-foreground">
-                    {byStatus[b.key]}{' '}
-                    <span className="text-xs">({percent(byStatus[b.key], totalMembers)}%)</span>
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif text-lg font-bold text-foreground">Member Status & Inflow Progress</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={exportMembersCsv}
+              className="text-xs text-gold hover:text-gold"
+            >
+              Export Directory CSV
+            </Button>
+          </div>
+
+          <div className="mt-5 space-y-4">
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">Active Savers</span>
+                <span className="text-muted-foreground">
+                  {byStatus.active} members ({percent(byStatus.active, totalMembers)}%)
+                </span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-gold transition-all"
+                  style={{ width: `${percent(byStatus.active, totalMembers)}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">Completed (Certificate Eligible)</span>
+                <span className="text-muted-foreground">
+                  {byStatus.completed} members ({percent(byStatus.completed, totalMembers)}%)
+                </span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-success transition-all"
+                  style={{ width: `${percent(byStatus.completed, totalMembers)}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-1.5 flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">Pending Covenant Sign-off</span>
+                <span className="text-muted-foreground">
+                  {byStatus.pending_covenant} members ({percent(byStatus.pending_covenant, totalMembers)}%)
+                </span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-warning transition-all"
+                  style={{ width: `${percent(byStatus.pending_covenant, totalMembers)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <Separator className="my-5" />
+
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
+            <div>
+              <span className="font-semibold text-foreground">{totalPlotsReserved}</span> Plots under covenant
+            </div>
+            <div>
+              <span className="font-semibold text-success">{formatNaira(totalCollectedKobo)}</span> Confirmed bank inflows
+            </div>
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => onNavigate('members')}
+              className="h-auto p-0 text-gold"
+            >
+              View all members →
+            </Button>
+          </div>
+        </div>
+
+        {/* Executive Target Dial */}
+        <div className="flex flex-col items-center justify-center rounded-3xl bg-secondary p-6 text-secondary-foreground shadow-sm">
+          <ProgressRing
+            percent={overallProgress}
+            size={130}
+            stroke={12}
+            trackClassName="text-white/15"
+            barClassName="text-gold"
+          >
+            <span className="font-serif text-3xl font-extrabold text-gold">{overallProgress}%</span>
+          </ProgressRing>
+
+          <h3 className="mt-4 font-serif text-base font-bold text-foreground">Program Target</h3>
+          <p className="mt-1 text-center text-xs text-secondary-foreground/70">
+            {formatNaira(totalCollectedKobo)} of {formatNaira(totalTargetKobo)}
+          </p>
+
+          <div className="mt-5 grid w-full grid-cols-2 gap-2 rounded-2xl bg-black/20 p-3 text-center text-xs">
+            <div>
+              <p className="text-secondary-foreground/60">Plots Paid</p>
+              <p className="mt-0.5 font-bold text-gold">{totalPlotsPaid}</p>
+            </div>
+            <div>
+              <p className="text-secondary-foreground/60">Target Plots</p>
+              <p className="mt-0.5 font-bold text-white">{totalPlotsReserved}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity Inflow Feed */}
+      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-serif text-lg font-bold text-foreground">Recent Inflows</h2>
+            <p className="text-xs text-muted-foreground">Latest transaction activities recorded across all members.</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onNavigate('transactions')}
+            className="text-xs text-gold hover:text-gold"
+          >
+            View full ledger ({transactions.length}) →
+          </Button>
+        </div>
+
+        {transactions.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">No transactions recorded yet.</p>
+        ) : (
+          <div className="mt-4 divide-y divide-border">
+            {transactions.slice(0, 5).map((tx) => (
+              <div key={tx.id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <span className={cn(
+                    'flex size-9 shrink-0 items-center justify-center rounded-xl',
+                    tx.status === 'confirmed' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+                  )}>
+                    <Receipt className="size-4" />
                   </span>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{tx.memberName || 'Member'}</p>
+                    <p className="text-xs text-muted-foreground">{tx.reference} · {formatDate(tx.paidAt)}</p>
+                  </div>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn('h-full rounded-full transition-all', b.cls)}
-                    style={{ width: `${percent(byStatus[b.key], totalMembers)}%` }}
-                  />
+                <div className="text-right">
+                  <p className="text-sm font-bold text-success">{formatNaira(tx.amountKobo)}</p>
+                  <PaymentBadge status={tx.status} />
                 </div>
               </div>
             ))}
           </div>
-
-          <Separator className="my-5" />
-          <div>
-            <div className="mb-1.5 flex items-center justify-between text-sm">
-              <span className="font-medium text-foreground">Overall Savings</span>
-              <span className="font-semibold text-gold">{overall}%</span>
-            </div>
-            <div className="h-3 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-gold transition-all" style={{ width: `${overall}%` }} />
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {formatNaira(totalCollected)} raised of {formatNaira(totalTarget)}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center rounded-3xl bg-secondary p-6 text-secondary-foreground shadow-sm lg:w-48">
-          <ProgressRing
-            percent={overall}
-            size={112}
-            stroke={11}
-            trackClassName="text-white/15"
-            barClassName="text-gold"
-          >
-            <span className="font-serif text-2xl font-bold text-gold">{overall}%</span>
-          </ProgressRing>
-          <p className="mt-3 text-center text-sm text-secondary-foreground/70">Overall Progress</p>
-        </div>
-      </div>
-
-      <div className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="font-serif text-lg font-bold text-foreground">Savings by Member</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Amounts in millions of naira (target vs. paid).
-        </p>
-        <div className="mt-5 h-56 min-h-0">
-          {isClient ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                barGap={4}
-                margin={{ top: 4, right: 4, left: -16, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fill: 'var(--muted-foreground)', fontSize: 12 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={(v) => `₦${v}M`}
-                />
-                <Tooltip
-                  cursor={{ fill: 'var(--muted)', opacity: 0.5 }}
-                  contentStyle={{
-                    background: 'var(--popover)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    color: 'var(--popover-foreground)',
-                  }}
-                  formatter={(value, name) => [
-                    `₦${Number(value)}M`,
-                    name === 'paid' ? 'Paid' : 'Target',
-                  ]}
-                />
-                <Bar dataKey="target" fill="var(--muted)" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="paid" fill="#8b6914" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-full items-center justify-center rounded-2xl bg-muted/30">
-              <span className="text-sm text-muted-foreground">Loading chart...</span>
-            </div>
-          )}
-        </div>
-        <div className="mt-3 flex items-center gap-5 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block size-3 rounded-sm bg-muted" />
-            Target
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block size-3 rounded-sm bg-gold" />
-            Paid
-          </span>
-        </div>
+        )}
       </div>
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ */
-/*  Members                                                             */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  2. MEMBERS SECTION                                                */
+/* ================================================================== */
 
-export function MembersSection({ members }: { members: Member[] }) {
+export function MembersSection({
+  members,
+  onRefresh,
+  onOpenRecordPayment,
+}: {
+  members: AdminMember[]
+  onRefresh: () => void
+  onOpenRecordPayment: (memberId?: string) => void
+}) {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | MemberStatus>('all')
-  const [selected, setSelected] = useState<Member | null>(null)
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin'>('all')
+  const [selected, setSelected] = useState<AdminMember | null>(null)
 
   const filtered = useMemo(() => {
     return members.filter((m) => {
@@ -309,20 +514,29 @@ export function MembersSection({ members }: { members: Member[] }) {
       const matchesQuery =
         m.name.toLowerCase().includes(q) ||
         m.email.toLowerCase().includes(q) ||
-        m.nuban.includes(q)
+        m.nuban.includes(q) ||
+        m.bank.toLowerCase().includes(q)
       const matchesStatus = statusFilter === 'all' || m.status === statusFilter
-      return matchesQuery && matchesStatus
+      const matchesRole = roleFilter === 'all' || (roleFilter === 'admin' && (m.isAdmin || m.isSuperadmin))
+      return matchesQuery && matchesStatus && matchesRole
     })
-  }, [query, statusFilter, members])
+  }, [query, statusFilter, roleFilter, members])
 
   return (
-    <div>
-      <div>
-        <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">Members</h1>
-        <p className="mt-1 text-muted-foreground">Search and review every registered saver.</p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Members Directory
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Inspect, manage plot quotas, and configure admin privileges.
+          </p>
+        </div>
       </div>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+      {/* Filter Bar */}
+      <div className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
           <Search
             className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
@@ -331,15 +545,16 @@ export function MembersSection({ members }: { members: Member[] }) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, email or NUBAN"
+            placeholder="Search by name, email, NUBAN or bank..."
             className="h-11 rounded-full pl-10"
           />
         </div>
+
         <Select
           value={statusFilter}
           onValueChange={(v: string) => setStatusFilter(v as 'all' | MemberStatus)}
         >
-          <SelectTrigger className="h-11 rounded-full sm:w-56">
+          <SelectTrigger className="h-11 rounded-full sm:w-48">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -351,31 +566,47 @@ export function MembersSection({ members }: { members: Member[] }) {
             </SelectGroup>
           </SelectContent>
         </Select>
+
+        <Select
+          value={roleFilter}
+          onValueChange={(v: string) => setRoleFilter(v as 'all' | 'admin')}
+        >
+          <SelectTrigger className="h-11 rounded-full sm:w-40">
+            <SelectValue placeholder="All roles" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="admin">Admins only</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
 
-      <p className="mt-3 text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         Showing <strong className="font-semibold text-foreground">{filtered.length}</strong> of{' '}
-        {members.length} members
+        {members.length} church members
       </p>
 
-      <div className="mt-3 overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
-        <div className="hidden grid-cols-[2fr_0.5fr_1fr_1fr_1fr_0.5fr] items-center gap-4 border-b border-border px-6 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground lg:grid">
+      {/* Members Table */}
+      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+        <div className="hidden grid-cols-[2fr_0.6fr_1fr_1fr_1fr_0.4fr] items-center gap-4 border-b border-border px-6 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:grid">
           <span>Member</span>
           <span>Plots</span>
           <span>Paid</span>
           <span>Remaining</span>
-          <span>Status</span>
+          <span>Status & Roles</span>
           <span />
         </div>
 
         {filtered.length === 0 ? (
-          <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-            No members match your search.
+          <p className="px-6 py-12 text-center text-sm text-muted-foreground">
+            No church members matched your filter criteria.
           </p>
         ) : (
           <ul className="divide-y divide-border">
             {filtered.map((m) => {
-              const paid = savedKobo(m)
+              const paid = memberSavedKobo(m)
               const tgt = targetKobo(m)
               const remaining = Math.max(0, tgt - paid)
               const pct = percent(paid, tgt)
@@ -384,30 +615,44 @@ export function MembersSection({ members }: { members: Member[] }) {
                   <button
                     type="button"
                     onClick={() => setSelected(m)}
-                    className="group grid w-full grid-cols-2 items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/40 lg:grid-cols-[2fr_0.5fr_1fr_1fr_1fr_0.5fr]"
+                    className="group grid w-full grid-cols-2 items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-muted/40 lg:grid-cols-[2fr_0.6fr_1fr_1fr_1fr_0.4fr]"
                   >
                     <div className="col-span-2 flex items-center gap-3 lg:col-span-1">
-                      <Avatar className="size-9 shrink-0">
+                      <Avatar className="size-9 shrink-0 border border-gold/20">
                         <AvatarFallback className="bg-accent text-sm font-bold text-gold">
                           {m.initials}
                         </AvatarFallback>
                       </Avatar>
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-foreground">{m.name}</p>
-                        <p className="truncate text-sm text-muted-foreground">{m.email}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="truncate font-semibold text-foreground">{m.name}</p>
+                          {m.isSuperadmin ? (
+                            <Badge className="border-gold/40 bg-gold/15 text-[10px] text-gold py-0">Superadmin</Badge>
+                          ) : m.isAdmin ? (
+                            <Badge variant="outline" className="text-[10px] py-0">Admin</Badge>
+                          ) : null}
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">{m.email}</p>
                       </div>
                     </div>
-                    <span className="text-sm font-medium text-foreground">{m.plots}</span>
+
+                    <span className="text-sm font-medium text-foreground">
+                      {m.plots} {m.plots === 1 ? 'plot' : 'plots'}
+                    </span>
+
                     <div>
                       <p className="font-semibold text-success">{formatNaira(paid)}</p>
                       <div className="mt-1 h-1.5 w-20 overflow-hidden rounded-full bg-muted">
                         <div className="h-full rounded-full bg-gold" style={{ width: `${pct}%` }} />
                       </div>
                     </div>
+
                     <span className="text-sm text-foreground">{formatNaira(remaining)}</span>
-                    <span className="col-span-2 lg:col-span-1">
+
+                    <div className="col-span-2 flex items-center gap-2 lg:col-span-1">
                       <MemberBadge status={m.status} />
-                    </span>
+                    </div>
+
                     <ChevronRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                 </li>
@@ -417,380 +662,775 @@ export function MembersSection({ members }: { members: Member[] }) {
         )}
       </div>
 
-      <MemberDrawer member={selected} onClose={() => setSelected(null)} />
+      <MemberDrawer
+        member={selected}
+        onClose={() => setSelected(null)}
+        onRefresh={onRefresh}
+        onOpenRecordPayment={onOpenRecordPayment}
+      />
     </div>
   )
 }
 
 /* ------------------------------------------------------------------ */
-/*  Member Detail Drawer                                                */
+/*  Member Detail & Role Control Drawer                               */
 /* ------------------------------------------------------------------ */
 
-function MemberDrawer({ member, onClose }: { member: Member | null; onClose: () => void }) {
-  const paid = member ? savedKobo(member) : 0
-  const tgt = member ? targetKobo(member) : 0
+function MemberDrawer({
+  member,
+  onClose,
+  onRefresh,
+  onOpenRecordPayment,
+}: {
+  member: AdminMember | null
+  onClose: () => void
+  onRefresh: () => void
+  onOpenRecordPayment: (memberId?: string) => void
+}) {
+  const [updatingRole, setUpdatingRole] = useState(false)
+  const [editingPlots, setEditingPlots] = useState(false)
+  const [plotsVal, setPlotsVal] = useState<number>(member?.plots ?? 1)
+
+  if (!member) return null
+
+  const paid = memberSavedKobo(member)
+  const tgt = targetKobo(member)
   const remaining = Math.max(0, tgt - paid)
   const pct = percent(paid, tgt)
-  const plotsDone = member ? Math.floor(paid / PRICE_PER_PLOT_KOBO) : 0
+  const plotsDone = Math.floor(paid / PRICE_PER_PLOT_KOBO)
+
+  async function handleToggleRole(role: 'is_admin' | 'is_superadmin', currentVal: boolean) {
+    if (!member) return
+    setUpdatingRole(true)
+    const res = await updateMemberAdminRoleAction(member.id, role, !currentVal)
+    setUpdatingRole(false)
+    if (res.success) {
+      toast.success(`Updated ${role} privilege for ${member.name}`)
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to update role')
+    }
+  }
+
+  async function handleSavePlots() {
+    if (!member) return
+    const res = await updateMemberPlotsAction(member.id, plotsVal)
+    if (res.success) {
+      toast.success(`Updated plot quota to ${plotsVal} for ${member.name}`)
+      setEditingPlots(false)
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to update plots')
+    }
+  }
 
   return (
     <Sheet open={!!member} onOpenChange={(open) => (!open ? onClose() : null)}>
-      <SheetContent className="flex w-full flex-col overflow-y-auto sm:max-w-md">
-        {member ? (
-          <>
-            <SheetHeader className="pb-0">
-              <div className="flex items-center gap-3">
-                <Avatar className="size-12 border-2 border-gold/20">
-                  <AvatarFallback className="bg-accent font-serif text-lg font-bold text-gold">
-                    {member.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <SheetTitle className="font-serif text-xl">{member.name}</SheetTitle>
-                  <SheetDescription className="text-sm">{member.email}</SheetDescription>
-                </div>
-              </div>
+      <SheetContent className="flex w-full flex-col overflow-y-auto sm:max-w-lg">
+        <SheetHeader className="pb-0 text-left">
+          <div className="flex items-center gap-3">
+            <Avatar className="size-12 border-2 border-gold/30">
+              <AvatarFallback className="bg-accent font-serif text-lg font-bold text-gold">
+                {member.initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <SheetTitle className="font-serif text-xl">{member.name}</SheetTitle>
+              <SheetDescription className="text-xs">{member.email}</SheetDescription>
+            </div>
+          </div>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                <MemberBadge status={member.status} />
-                <Badge className="rounded-full border-transparent bg-gold/12 px-3 text-xs text-gold">
-                  <LandPlot className="mr-1 size-3" aria-hidden />
-                  {plotLabel(member.plots)}
-                </Badge>
-                {member.covenantSignedAt && (
-                  <Badge className="rounded-full border-transparent bg-success/10 px-3 text-xs text-success">
-                    <ScrollText className="mr-1 size-3" aria-hidden />
-                    Covenant signed
-                  </Badge>
-                )}
-              </div>
-            </SheetHeader>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <MemberBadge status={member.status} />
+            <Badge className="rounded-full border-transparent bg-gold/12 px-3 text-xs text-gold">
+              <LandPlot className="mr-1 size-3" />
+              {plotLabel(member.plots)}
+            </Badge>
+            {member.covenantSignedAt && (
+              <Badge className="rounded-full border-transparent bg-success/10 px-3 text-xs text-success">
+                <ScrollText className="mr-1 size-3" />
+                Signed {formatDate(member.covenantSignedAt)}
+              </Badge>
+            )}
+          </div>
+        </SheetHeader>
 
-            <div className="flex flex-1 flex-col gap-5 pb-8">
-              <div className="rounded-2xl bg-secondary p-5 text-secondary-foreground">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-secondary-foreground/60">
-                      Savings Progress
-                    </p>
-                    <p className="mt-1 font-serif text-2xl font-bold text-gold">{pct}%</p>
-                  </div>
-                  <ProgressRing
-                    percent={pct}
-                    size={72}
-                    stroke={8}
-                    trackClassName="text-white/15"
-                    barClassName="text-gold"
-                  >
-                    <span className="font-serif text-base font-bold text-gold">{pct}%</span>
-                  </ProgressRing>
-                </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
-                  <div className="h-full rounded-full bg-gold" style={{ width: `${pct}%` }} />
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-                  <div>
-                    <p className="text-secondary-foreground/60">Paid</p>
-                    <p className="mt-0.5 font-bold text-gold">{formatNaira(paid)}</p>
-                  </div>
-                  <div>
-                    <p className="text-secondary-foreground/60">Remaining</p>
-                    <p className="mt-0.5 font-semibold">{formatNaira(remaining)}</p>
-                  </div>
-                  <div>
-                    <p className="text-secondary-foreground/60">Target</p>
-                    <p className="mt-0.5 font-semibold">{formatNaira(tgt)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <dl className="flex flex-col gap-3 rounded-2xl border border-border p-4 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">NUBAN</dt>
-                  <dd className="font-mono font-semibold text-foreground">{member.nuban}</dd>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Bank</dt>
-                  <dd className="font-medium text-foreground">{member.bank}</dd>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Plots reserved</dt>
-                  <dd className="font-medium text-foreground">{plotLabel(member.plots)}</dd>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <dt className="text-muted-foreground">Plots fully paid</dt>
-                  <dd className="font-medium text-foreground">
-                    {plotsDone > 0 ? plotLabel(plotsDone) : 'None yet'}
-                  </dd>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <dt className="flex items-center gap-1.5 text-muted-foreground">
-                    <CalendarDays className="size-3.5" aria-hidden />
-                    Member since
-                  </dt>
-                  <dd className="font-medium text-foreground">{formatDate(member.memberSince)}</dd>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <dt className="flex items-center gap-1.5 text-muted-foreground">
-                    <ScrollText className="size-3.5" aria-hidden />
-                    Covenant
-                  </dt>
-                  <dd className="font-medium text-foreground">
-                    {member.covenantSignedAt ? (
-                      <span className="text-success">Signed {formatDate(member.covenantSignedAt)}</span>
-                    ) : (
-                      <span className="text-warning">Not signed</span>
-                    )}
-                  </dd>
-                </div>
-              </dl>
-
+        <div className="flex flex-1 flex-col gap-5 pb-8">
+          {/* Savings Dial Card */}
+          <div className="rounded-2xl bg-secondary p-5 text-secondary-foreground">
+            <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-serif text-base font-bold text-foreground">
-                  Transaction History
-                </h3>
-                {member.transactions.length === 0 ? (
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    No transactions recorded yet.
-                  </p>
-                ) : (
-                  <ul className="mt-3 flex flex-col gap-2">
-                    {[...member.transactions]
-                      .sort((a, b) => +new Date(b.date) - +new Date(a.date))
-                      .map((t) => (
-                        <li
-                          key={t.id}
-                          className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {formatDate(t.date)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{t.reference}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={cn(
-                                'text-sm font-bold',
-                                t.status === 'confirmed'
-                                  ? 'text-success'
-                                  : t.status === 'failed'
-                                    ? 'text-destructive line-through opacity-60'
-                                    : 'text-foreground',
-                              )}
-                            >
-                              {formatNaira(t.amountKobo)}
-                            </span>
-                            <PaymentBadge status={t.status} />
-                          </div>
-                        </li>
-                      ))}
-                  </ul>
-                )}
+                <p className="text-xs uppercase tracking-wide text-secondary-foreground/60">
+                  Savings Progress
+                </p>
+                <p className="mt-1 font-serif text-2xl font-bold text-gold">{pct}%</p>
+              </div>
+              <ProgressRing
+                percent={pct}
+                size={72}
+                stroke={8}
+                trackClassName="text-white/15"
+                barClassName="text-gold"
+              >
+                <span className="font-serif text-base font-bold text-gold">{pct}%</span>
+              </ProgressRing>
+            </div>
+
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
+              <div className="h-full rounded-full bg-gold" style={{ width: `${pct}%` }} />
+            </div>
+
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+              <div>
+                <p className="text-secondary-foreground/60">Paid</p>
+                <p className="mt-0.5 font-bold text-gold">{formatNaira(paid)}</p>
+              </div>
+              <div>
+                <p className="text-secondary-foreground/60">Remaining</p>
+                <p className="mt-0.5 font-semibold">{formatNaira(remaining)}</p>
+              </div>
+              <div>
+                <p className="text-secondary-foreground/60">Target</p>
+                <p className="mt-0.5 font-semibold">{formatNaira(tgt)}</p>
               </div>
             </div>
-          </>
-        ) : null}
+          </div>
+
+          {/* Superadmin Role & Quota Controls */}
+          <div className="rounded-2xl border border-gold/30 bg-gold/5 p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-gold flex items-center gap-1.5">
+              <ShieldAlert className="size-3.5" />
+              Superadmin Privileges
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button
+                variant={member.isAdmin ? 'default' : 'outline'}
+                size="sm"
+                disabled={updatingRole}
+                onClick={() => handleToggleRole('is_admin', member.isAdmin)}
+                className="rounded-xl text-xs"
+              >
+                {member.isAdmin ? 'Revoke Admin' : 'Make Admin'}
+              </Button>
+
+              <Button
+                variant={member.isSuperadmin ? 'default' : 'outline'}
+                size="sm"
+                disabled={updatingRole}
+                onClick={() => handleToggleRole('is_superadmin', member.isSuperadmin)}
+                className="rounded-xl text-xs border-gold/40 text-gold"
+              >
+                {member.isSuperadmin ? 'Revoke Superadmin' : 'Make Superadmin'}
+              </Button>
+            </div>
+
+            <div className="mt-3 flex items-center justify-between pt-2 border-t border-gold/20">
+              <span className="text-xs text-muted-foreground">Plot Allocation Quota</span>
+              {!editingPlots ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-foreground">{member.plots} Plots</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setPlotsVal(member.plots)
+                      setEditingPlots(true)
+                    }}
+                    className="size-6 p-0 text-muted-foreground hover:text-foreground"
+                  >
+                    <Edit3 className="size-3" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    value={plotsVal}
+                    onChange={(e) => setPlotsVal(Number(e.target.value))}
+                    className="h-7 w-16 text-xs"
+                  />
+                  <Button size="sm" onClick={handleSavePlots} className="h-7 px-2 text-xs bg-gold text-gold-foreground">
+                    Save
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setEditingPlots(false)} className="h-7 px-2 text-xs">
+                    Cancel
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Member Details List */}
+          <dl className="flex flex-col gap-2.5 rounded-2xl border border-border p-4 text-xs">
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">NUBAN / Virtual Account</dt>
+              <dd className="font-mono font-semibold text-foreground">{member.nuban || 'Pending creation'}</dd>
+            </div>
+            <Separator />
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Designated Bank</dt>
+              <dd className="font-medium text-foreground">{member.bank}</dd>
+            </div>
+            <Separator />
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Plots fully paid</dt>
+              <dd className="font-medium text-foreground">
+                {plotsDone > 0 ? `${plotsDone} Plot(s)` : 'None yet'}
+              </dd>
+            </div>
+            <Separator />
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">Member since</dt>
+              <dd className="font-medium text-foreground">{formatDate(member.memberSince)}</dd>
+            </div>
+          </dl>
+
+          {/* Member Linked Transactions */}
+          <div>
+            <div className="flex items-center justify-between">
+              <h3 className="font-serif text-sm font-bold text-foreground">
+                Payment History ({member.transactions.length})
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose()
+                  onOpenRecordPayment(member.id)
+                }}
+                className="h-7 rounded-full text-xs border-gold/40 text-gold"
+              >
+                <PlusCircle className="mr-1 size-3" />
+                Add Payment
+              </Button>
+            </div>
+
+            {member.transactions.length === 0 ? (
+              <p className="mt-3 text-xs text-muted-foreground">No payments recorded for this member yet.</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2">
+                {member.transactions.map((t) => (
+                  <li
+                    key={t.id}
+                    className="flex items-center justify-between rounded-xl border border-border p-3"
+                  >
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">{formatDate(t.paidAt)}</p>
+                      <p className="text-[11px] text-muted-foreground">{t.reference} · {t.method}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-success">{formatNaira(t.amountKobo)}</p>
+                      <PaymentBadge status={t.status} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </SheetContent>
     </Sheet>
   )
 }
 
-/* ------------------------------------------------------------------ */
-/*  Certificate Queue                                                   */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  3. TRANSACTIONS SECTION (NEW)                                     */
+/* ================================================================== */
 
-export function CertificatesSection({ members }: { members: Member[] }) {
-  const completed = members.filter((m) => m.status === 'completed')
-  const [issued, setIssued] = useState<Set<string>>(new Set())
+export function TransactionsSection({
+  transactions,
+  members,
+  onRefresh,
+  onOpenRecordPayment,
+}: {
+  transactions: AdminTransaction[]
+  members: AdminMember[]
+  onRefresh: () => void
+  onOpenRecordPayment: (memberId?: string) => void
+}) {
+  const [filter, setFilter] = useState<'all' | PaymentStatus>('all')
+  const [query, setQuery] = useState('')
+  const [confirmingId, setConfirmingId] = useState<string | null>(null)
 
-  const pending = completed.filter((m) => !issued.has(m.id))
-  const issuedList = completed.filter((m) => issued.has(m.id))
+  const filtered = useMemo(() => {
+    return transactions.filter((t) => {
+      const q = query.toLowerCase()
+      const matchesQuery =
+        t.reference.toLowerCase().includes(q) ||
+        (t.memberName && t.memberName.toLowerCase().includes(q)) ||
+        (t.memberEmail && t.memberEmail.toLowerCase().includes(q)) ||
+        (t.notes && t.notes.toLowerCase().includes(q))
+      const matchesStatus = filter === 'all' || t.status === filter
+      return matchesQuery && matchesStatus
+    })
+  }, [query, filter, transactions])
 
-  function markIssued(m: Member) {
-    setIssued((prev) => new Set(prev).add(m.id))
-    toast.success(`Certificate marked as issued for ${m.name}`)
+  async function handleUpdateStatus(txId: string, status: PaymentStatus) {
+    setConfirmingId(txId)
+    const res = await updateTransactionStatusAction(txId, status)
+    setConfirmingId(null)
+    if (res.success) {
+      toast.success(`Transaction marked as ${status}`)
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to update transaction status')
+    }
   }
 
   return (
-    <div>
-      <div className="flex items-start justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">
-            Certificate Queue
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Transactions Ledger
           </h1>
-          <p className="mt-1 text-muted-foreground">
-            Members who completed payment and are waiting for land certificates.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Complete record of automated Paystack and offline church bank transfers.
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-          <span className="text-2xl font-bold text-foreground">{pending.length}</span>
-          <span className="text-xs text-muted-foreground">pending</span>
+
+        <Button
+          onClick={() => onOpenRecordPayment()}
+          className="rounded-full bg-gold font-semibold text-gold-foreground hover:bg-gold/90 shadow-sm"
+        >
+          <PlusCircle className="mr-1.5 size-4" />
+          Record Offline Transfer
+        </Button>
+      </div>
+
+      {/* Filter Tabs & Search */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex-1">
+          <Search
+            className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by reference, member name or note..."
+            className="h-11 rounded-full pl-10"
+          />
+        </div>
+
+        <div className="flex rounded-full border border-border bg-card p-1">
+          {(['all', 'confirmed', 'pending', 'failed'] as const).map((tab) => {
+            const count = transactions.filter((t) => (tab === 'all' ? true : t.status === tab)).length
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFilter(tab)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium capitalize transition-colors',
+                  filter === tab
+                    ? 'bg-gold text-gold-foreground font-semibold shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <span>{tab}</span>
+                {count > 0 && (
+                  <span className={cn(
+                    'inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold',
+                    filter === tab ? 'bg-black/20 text-gold-foreground' : 'bg-muted text-muted-foreground'
+                  )}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {pending.length === 0 ? (
-        <Empty className="mt-6 rounded-3xl border border-border bg-card py-16">
+      {/* Transaction List Table */}
+      <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-sm">
+        <div className="hidden grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_1fr] items-center gap-4 border-b border-border px-6 py-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground lg:grid">
+          <span>Reference / Method</span>
+          <span>Member</span>
+          <span>Date</span>
+          <span>Amount</span>
+          <span>Status</span>
+          <span className="text-right">Actions</span>
+        </div>
+
+        {filtered.length === 0 ? (
+          <Empty className="py-12">
+            <EmptyHeader>
+              <EmptyMedia variant="icon" className="size-12 bg-accent text-gold">
+                <Receipt />
+              </EmptyMedia>
+              <EmptyTitle className="font-serif text-lg font-bold">No transactions found</EmptyTitle>
+              <EmptyDescription>
+                {filter === 'all'
+                  ? 'No payment entries match your search query.'
+                  : `No ${filter} transactions found.`}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <ul className="divide-y divide-border">
+            {filtered.map((t) => (
+              <li
+                key={t.id}
+                className="grid grid-cols-2 items-center gap-4 px-6 py-4 lg:grid-cols-[1.5fr_1.5fr_1fr_1fr_1fr_1fr]"
+              >
+                <div>
+                  <p className="font-mono text-xs font-bold text-foreground">{t.reference}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{t.method}</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold text-foreground">{t.memberName || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground">{t.memberEmail || ''}</p>
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  <p>{formatDate(t.paidAt)}</p>
+                  {t.notes && <p className="truncate text-[10px] text-muted-foreground/80">{t.notes}</p>}
+                </div>
+
+                <div>
+                  <p className="font-serif font-bold text-success">{formatNaira(t.amountKobo)}</p>
+                  {t.feeKobo ? (
+                    <p className="text-[10px] text-muted-foreground">Fee: {formatNaira(t.feeKobo)}</p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <PaymentBadge status={t.status} />
+                </div>
+
+                <div className="col-span-2 flex items-center justify-end gap-1.5 lg:col-span-1">
+                  {t.status === 'pending' && (
+                    <>
+                      <Button
+                        size="sm"
+                        disabled={confirmingId === t.id}
+                        onClick={() => handleUpdateStatus(t.id, 'confirmed')}
+                        className="h-7 rounded-full bg-success text-success-foreground text-xs px-2.5"
+                      >
+                        Confirm
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={confirmingId === t.id}
+                        onClick={() => handleUpdateStatus(t.id, 'failed')}
+                        className="h-7 rounded-full text-destructive text-xs px-2.5 hover:bg-destructive/10"
+                      >
+                        Reject
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ================================================================== */
+/*  4. CERTIFICATE QUEUE SECTION                                      */
+/* ================================================================== */
+
+export function CertificatesSection({
+  members,
+  certificates,
+  onRefresh,
+}: {
+  members: AdminMember[]
+  certificates: AdminCertificate[]
+  onRefresh: () => void
+}) {
+  const [issueModalMember, setIssueModalMember] = useState<AdminMember | null>(null)
+  const [plotNumbersInput, setPlotNumbersInput] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  // Members who have completed their payment quota
+  const completedMembers = useMemo(() => {
+    return members.filter((m) => m.status === 'completed' || memberSavedKobo(m) >= targetKobo(m))
+  }, [members])
+
+  const certsByMember = useMemo(() => {
+    const map = new Map<string, AdminCertificate>()
+    certificates.forEach((c) => map.set(c.memberId, c))
+    return map
+  }, [certificates])
+
+  async function handleIssueCertificate() {
+    if (!issueModalMember || !plotNumbersInput.trim()) {
+      toast.error('Please specify the plot numbers (e.g. Plot 14 & 15, Block B)')
+      return
+    }
+    setSubmitting(true)
+    const res = await issueCertificateAction(issueModalMember.id, plotNumbersInput)
+    setSubmitting(false)
+    if (res.success) {
+      toast.success(`Certificate issued for ${issueModalMember.name}`)
+      setIssueModalMember(null)
+      setPlotNumbersInput('')
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to issue certificate')
+    }
+  }
+
+  async function handleToggleDelivery(cert: AdminCertificate) {
+    const nextState = !cert.delivered
+    const res = await updateCertificateDeliveryAction(cert.id, nextState)
+    if (res.success) {
+      toast.success(`Marked as ${nextState ? 'delivered' : 'undelivered'}`)
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to update certificate delivery')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Certificate Queue & Allocation
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Assign surveyed plot numbers and record physical title certificate handovers.
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="font-serif text-2xl font-bold text-foreground">{completedMembers.length}</span>
+          <p className="text-xs text-muted-foreground">Eligible Savers</p>
+        </div>
+      </div>
+
+      {completedMembers.length === 0 ? (
+        <Empty className="rounded-3xl border border-border bg-card py-16">
           <EmptyHeader>
             <EmptyMedia variant="icon" className="size-12 bg-accent text-gold">
               <CheckCircle2 />
             </EmptyMedia>
             <EmptyTitle className="font-serif text-lg font-bold">Queue is clear</EmptyTitle>
             <EmptyDescription>
-              Every completed member has been issued a certificate.
+              No church members have completed full plot savings yet. Completed savers will automatically appear here.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        <ul className="mt-6 flex flex-col gap-3">
-          {pending.map((m) => {
-            const paid = savedKobo(m)
-            return (
-              <li
-                key={m.id}
-                className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar className="size-10 shrink-0">
-                    <AvatarFallback className="bg-accent text-sm font-bold text-gold">
-                      {m.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold text-foreground">{m.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {plotLabel(m.plots)} &middot; {formatNaira(paid)} paid in full
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  onClick={() => markIssued(m)}
-                  className="rounded-full bg-gold text-gold-foreground hover:bg-gold/90"
-                >
-                  <CheckCircle2 data-icon="inline-start" />
-                  Mark as Issued
-                </Button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+        <div className="space-y-4">
+          <ul className="flex flex-col gap-3">
+            {completedMembers.map((m) => {
+              const cert = certsByMember.get(m.id)
+              const isIssued = !!cert?.issuedAt
 
-      {issuedList.length > 0 && (
-        <div className="mt-8">
-          <p className="text-sm font-semibold text-muted-foreground">
-            Issued this session ({issuedList.length})
-          </p>
-          <ul className="mt-3 flex flex-col gap-2">
-            {issuedList.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 opacity-60"
-              >
-                <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
-                <span className="text-sm font-medium text-foreground">{m.name}</span>
-                <span className="ml-auto text-xs text-muted-foreground">Certificate issued</span>
-              </li>
-            ))}
+              return (
+                <li
+                  key={m.id}
+                  className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <Avatar className="size-11 shrink-0 border border-gold/30">
+                      <AvatarFallback className="bg-accent font-serif text-sm font-bold text-gold">
+                        {m.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-foreground">{m.name}</p>
+                        {isIssued ? (
+                          <Badge className="border-success/30 bg-success/10 text-success text-[10px]">
+                            Issued
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="border-warning/40 bg-warning/10 text-warning text-[10px]">
+                            Needs Plot Assignment
+                          </Badge>
+                        )}
+                      </div>
+
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {plotLabel(m.plots)} · {formatNaira(memberSavedKobo(m))} paid in full
+                      </p>
+
+                      {cert?.plotNumbers && (
+                        <p className="mt-1 text-xs font-semibold text-gold">
+                          Assigned: {cert.plotNumbers}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!isIssued ? (
+                      <Button
+                        onClick={() => {
+                          setIssueModalMember(m)
+                          setPlotNumbersInput('')
+                        }}
+                        className="rounded-full bg-gold font-semibold text-gold-foreground hover:bg-gold/90"
+                      >
+                        <LandPlot className="mr-1.5 size-4" />
+                        Assign Plots & Issue
+                      </Button>
+                    ) : (
+                      <Button
+                        variant={cert.delivered ? 'outline' : 'default'}
+                        onClick={() => handleToggleDelivery(cert)}
+                        className={cn(
+                          'rounded-full text-xs',
+                          cert.delivered ? 'border-success/40 text-success' : 'bg-success text-success-foreground'
+                        )}
+                      >
+                        <CheckCircle2 className="mr-1.5 size-3.5" />
+                        {cert.delivered ? 'Delivered to Member' : 'Mark Handed Over'}
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}
+
+      {/* Plot Assignment Modal */}
+      <Dialog open={!!issueModalMember} onOpenChange={(open) => (!open ? setIssueModalMember(null) : null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-xl">Assign Plot Numbers</DialogTitle>
+            <DialogDescription>
+              Record the surveyed plot identification numbers from the Dawrash City master survey plan.
+            </DialogDescription>
+          </DialogHeader>
+
+          {issueModalMember && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-2xl bg-muted/50 p-3 text-xs">
+                <p className="font-semibold text-foreground">{issueModalMember.name}</p>
+                <p className="text-muted-foreground">{plotLabel(issueModalMember.plots)} reserved · {issueModalMember.email}</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-foreground">Assigned Plot Numbers</label>
+                <Input
+                  value={plotNumbersInput}
+                  onChange={(e) => setPlotNumbersInput(e.target.value)}
+                  placeholder="e.g. Plot 104, Block C (Phase 1)"
+                  className="mt-1.5"
+                  autoFocus
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  This will be recorded permanently in the certificates database.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIssueModalMember(null)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={submitting || !plotNumbersInput.trim()}
+              onClick={handleIssueCertificate}
+              className="bg-gold text-gold-foreground hover:bg-gold/90 font-semibold"
+            >
+              {submitting ? 'Issuing…' : 'Confirm & Issue'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-/* ------------------------------------------------------------------ */
-/*  Audit Flags                                                         */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  5. AUDIT FLAGS SECTION                                            */
+/* ================================================================== */
 
-// Audit flags are still static in v1 - will be driven by payment webhooks in v2.
-const auditFlags = [
-  {
-    id: 'af1',
-    member: 'Samuel Ogunleye',
-    reference: 'DWR-8750',
-    expectedKobo: 1_200_000 * 100,
-    recordedKobo: 1_150_000 * 100,
-    note: 'Transfer amount lower than logged pledge.',
-  },
-  {
-    id: 'af2',
-    member: 'Emmanuel Bello',
-    reference: 'DWR-8500',
-    expectedKobo: 500_000 * 100,
-    recordedKobo: 520_000 * 100,
-    note: 'Duplicate inflow detected against single reference.',
-  },
-]
+export function AuditSection({
+  auditFlags,
+  onRefresh,
+}: {
+  auditFlags: AdminAuditFlag[]
+  onRefresh: () => void
+}) {
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
 
-export function AuditSection() {
-  const [resolved, setResolved] = useState<Set<string>>(new Set())
-  const open = auditFlags.filter((f) => !resolved.has(f.id))
-  const resolvedList = auditFlags.filter((f) => resolved.has(f.id))
+  const openFlags = auditFlags.filter((f) => !f.resolved)
+  const resolvedFlags = auditFlags.filter((f) => f.resolved)
 
-  function resolve(id: string, memberName: string) {
-    setResolved((prev) => new Set(prev).add(id))
-    toast.success(`Flag resolved for ${memberName}`)
+  async function handleResolve(flagId: string) {
+    setResolvingId(flagId)
+    const res = await resolveAuditFlagAction(flagId)
+    setResolvingId(null)
+    if (res.success) {
+      toast.success('Audit discrepancy marked as resolved')
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to resolve audit flag')
+    }
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-serif text-2xl font-bold text-foreground md:text-3xl">
-            Audit Flags
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Audit & Reconciliation Flags
           </h1>
-          <p className="mt-1 text-muted-foreground">
-            Reconciliation mismatches that need a human decision.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Inflow discrepancies, bank pledge mismatches, and duplicate reference alerts.
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-          <span className="text-2xl font-bold text-destructive">{open.length}</span>
-          <span className="text-xs text-muted-foreground">open flags</span>
+        <div className="text-right">
+          <span className="font-serif text-2xl font-bold text-destructive">{openFlags.length}</span>
+          <p className="text-xs text-muted-foreground">Open Flags</p>
         </div>
       </div>
 
-      {open.length === 0 ? (
-        <Empty className="mt-6 rounded-3xl border border-border bg-card py-16">
+      {openFlags.length === 0 ? (
+        <Empty className="rounded-3xl border border-border bg-card py-16">
           <EmptyHeader>
             <EmptyMedia variant="icon" className="size-12 bg-accent text-gold">
-              <Flag />
+              <CheckCircle2 />
             </EmptyMedia>
             <EmptyTitle className="font-serif text-lg font-bold">No open flags</EmptyTitle>
             <EmptyDescription>
-              All reconciliation mismatches have been resolved.
+              All bank inflows match their intended transaction amounts.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        <ul className="mt-6 flex flex-col gap-3">
-          {open.map((f) => {
-            const variance = f.recordedKobo - f.expectedKobo
-            const isOver = variance > 0
+        <ul className="flex flex-col gap-3">
+          {openFlags.map((f) => {
+            const isOver = f.varianceKobo > 0
             return (
               <li
                 key={f.id}
-                className="rounded-2xl border border-destructive/20 bg-card p-5 shadow-sm"
+                className="rounded-2xl border border-destructive/25 bg-card p-5 shadow-sm"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-start gap-3">
                     <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-                      <AlertTriangle className="size-4" aria-hidden />
+                      <AlertTriangle className="size-4" />
                     </span>
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-foreground">{f.member}</p>
-                        <Badge variant="outline" className="rounded-full text-xs text-muted-foreground">
+                        <p className="font-semibold text-foreground">{f.memberName || 'Member'}</p>
+                        <Badge variant="outline" className="rounded-full font-mono text-[10px] text-muted-foreground">
                           {f.reference}
                         </Badge>
                       </div>
                       <p className="mt-1 text-sm text-muted-foreground">{f.note}</p>
-                      <div className="mt-2 flex flex-wrap gap-4 text-sm">
+
+                      <div className="mt-2.5 flex flex-wrap gap-4 text-xs">
                         <span>
                           <span className="text-muted-foreground">Expected: </span>
                           <span className="font-semibold text-foreground">{formatNaira(f.expectedKobo)}</span>
@@ -802,18 +1442,21 @@ export function AuditSection() {
                         <span>
                           <span className="text-muted-foreground">Variance: </span>
                           <span className={cn('font-bold', isOver ? 'text-warning' : 'text-destructive')}>
-                            {isOver ? '+' : ''}{formatNaira(variance)}
+                            {isOver ? '+' : ''}{formatNaira(f.varianceKobo)}
                           </span>
                         </span>
                       </div>
                     </div>
                   </div>
+
                   <Button
                     variant="outline"
-                    onClick={() => resolve(f.id, f.member)}
+                    size="sm"
+                    disabled={resolvingId === f.id}
+                    onClick={() => handleResolve(f.id)}
                     className="shrink-0 rounded-full border-gold/40 text-gold hover:bg-accent hover:text-gold"
                   >
-                    Resolve
+                    Resolve Discrepancy
                   </Button>
                 </div>
               </li>
@@ -822,28 +1465,188 @@ export function AuditSection() {
         </ul>
       )}
 
-      {resolvedList.length > 0 && (
-        <div className="mt-8">
-          <p className="text-sm font-semibold text-muted-foreground">
-            Resolved this session ({resolvedList.length})
+      {resolvedFlags.length > 0 && (
+        <div className="mt-8 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Resolved Audit Trail ({resolvedFlags.length})
           </p>
-          <ul className="mt-3 flex flex-col gap-2">
-            {resolvedList.map((f) => (
+          <ul className="flex flex-col gap-2">
+            {resolvedFlags.map((f) => (
               <li
                 key={f.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 opacity-60"
+                className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3 opacity-60 text-xs"
               >
-                <CheckCircle2 className="size-4 shrink-0 text-success" aria-hidden />
-                <span className="text-sm font-medium text-foreground">{f.member}</span>
-                <Badge variant="outline" className="rounded-full text-xs text-muted-foreground">
-                  {f.reference}
-                </Badge>
-                <span className="ml-auto text-xs text-muted-foreground">Resolved</span>
+                <div className="flex items-center gap-2.5">
+                  <CheckCircle2 className="size-4 text-success" />
+                  <span className="font-medium text-foreground">{f.memberName}</span>
+                  <span className="font-mono text-muted-foreground">{f.reference}</span>
+                </div>
+                <span className="text-muted-foreground">
+                  Resolved {f.resolvedAt ? formatDate(f.resolvedAt) : ''}
+                </span>
               </li>
             ))}
           </ul>
         </div>
       )}
     </div>
+  )
+}
+
+/* ================================================================== */
+/*  6. RECORD OFFLINE / BANK TRANSFER MODAL                           */
+/* ================================================================== */
+
+export function RecordPaymentModal({
+  open,
+  defaultMemberId,
+  members,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean
+  defaultMemberId?: string
+  members: AdminMember[]
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [memberId, setMemberId] = useState(defaultMemberId || members[0]?.id || '')
+  const [nairaAmount, setNairaAmount] = useState('')
+  const [method, setMethod] = useState('Direct Bank Transfer')
+  const [reference, setReference] = useState('')
+  const [paidAt, setPaidAt] = useState(new Date().toISOString().split('T')[0])
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const naira = Number(nairaAmount)
+    if (!memberId) return toast.error('Please select a church member')
+    if (!naira || naira <= 0) return toast.error('Please enter a valid amount')
+
+    setLoading(true)
+    const amountKobo = Math.round(naira * 100)
+    const res = await recordManualTransactionAction({
+      memberId,
+      amountKobo,
+      method,
+      reference: reference.trim() || undefined,
+      paidAt,
+      notes: notes.trim() || undefined,
+    })
+    setLoading(false)
+
+    if (res.success) {
+      toast.success('Offline payment recorded successfully')
+      onSuccess()
+      onClose()
+    } else {
+      toast.error(res.error || 'Failed to record transaction')
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : null)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="font-serif text-xl">Record Offline Payment</DialogTitle>
+          <DialogDescription>
+            Log a direct church account bank transfer or cash deposit toward a member&apos;s plot target.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4 py-2">
+          <div>
+            <label className="text-xs font-semibold text-foreground">Member</label>
+            <Select value={memberId} onValueChange={setMemberId}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select member" />
+              </SelectTrigger>
+              <SelectContent>
+                {members.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name} ({m.email})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-foreground">Amount (NGN)</label>
+              <Input
+                type="number"
+                min={100}
+                value={nairaAmount}
+                onChange={(e) => setNairaAmount(e.target.value)}
+                placeholder="e.g. 500000"
+                className="mt-1"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-foreground">Payment Date</label>
+              <Input
+                type="date"
+                value={paidAt}
+                onChange={(e) => setPaidAt(e.target.value)}
+                className="mt-1"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-foreground">Payment Method</label>
+              <Select value={method} onValueChange={setMethod}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Direct Bank Transfer">Direct Bank Transfer</SelectItem>
+                  <SelectItem value="POS Transfer">POS Transfer</SelectItem>
+                  <SelectItem value="Cash Deposit">Cash Deposit</SelectItem>
+                  <SelectItem value="Paystack Manual">Paystack Manual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-foreground">Bank Ref / Receipt #</label>
+              <Input
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="e.g. WEMA-99482"
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-foreground">Superadmin Audit Notes</label>
+            <Input
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Confirmed in church bank statement"
+              className="mt-1"
+            />
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="bg-gold text-gold-foreground hover:bg-gold/90 font-semibold"
+            >
+              {loading ? 'Recording…' : 'Record Payment'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
