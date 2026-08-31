@@ -37,8 +37,8 @@ export type Member = {
   plots: number
   memberSince: string
   covenantSignedAt: string | null
-  nuban: string
-  bank: string
+  nuban?: string | null
+  bank?: string | null
   status: MemberStatus
   transactions: Transaction[]
 }

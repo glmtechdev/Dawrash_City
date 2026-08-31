@@ -9,8 +9,6 @@ Columns:
 - `initials` (text, default `''`)
 - `glm_member_id` (uuid, nullable, unique)
 - `plots` (smallint, default `0`)
-- `nuban` (text, nullable)
-- `bank` (text, default `'Wema Bank'`)
 - `status` (enum: `pending_covenant | active | completed`)
 - `onboarding_complete` (boolean, default `false`)
 - `member_since` (date, default `CURRENT_DATE`)
