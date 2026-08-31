@@ -5,7 +5,9 @@ export const PRICE_PER_PLOT_KOBO = 2_000_000 * 100 // 2,000,000 naira per plot
 
 export function formatNaira(kobo: number): string {
   const naira = Math.round(kobo / 100)
-  return `\u20A6${naira.toLocaleString('en-NG')}`
+  // Use a fixed locale + explicit options so SSR (Node) and the browser
+  // always produce the same string and avoid a hydration mismatch.
+  return `\u20A6${new Intl.NumberFormat('en-NG', { useGrouping: true }).format(naira)}`
 }
 
 export function plotLabel(count: number): string {

@@ -28,10 +28,13 @@ import {
 const milestones = [25, 50, 75, 100]
 
 function formatDate(iso: string): string {
+  // timeZone: 'UTC' ensures date-only strings (e.g. '2026-08-18') aren't
+  // shifted into a neighbouring day by the server's or user's local timezone.
   return new Date(iso).toLocaleDateString('en-NG', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   })
 }
 

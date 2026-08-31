@@ -10,10 +10,13 @@ import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira, PRICE_P
 import { CircleCheck, LandPlot, LogOut, Mail, CalendarDays, TrendingUp, ScrollText, CheckCircle2 } from 'lucide-react'
 
 function formatDate(iso: string): string {
+  // timeZone: 'UTC' ensures date-only strings (e.g. '2025-11-04') aren't
+  // shifted into a neighbouring day by the server's or user's local timezone.
   return new Date(iso).toLocaleDateString('en-NG', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+    timeZone: 'UTC',
   })
 }
 

@@ -70,10 +70,14 @@ import {
 /* ------------------------------------------------------------------ */
 
 function formatDate(iso: string): string {
+  // timeZone: 'UTC' prevents date-only ISO strings from being shifted
+  // into a different calendar day by the user's local timezone, which
+  // would produce a server/client mismatch and trigger a hydration warning.
   return new Date(iso).toLocaleDateString('en-NG', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+    timeZone: 'UTC',
   })
 }
 

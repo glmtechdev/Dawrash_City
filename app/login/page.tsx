@@ -102,6 +102,37 @@ function LoginForm() {
             Open GLM Members App
           </a>
         </div>
+
+        {/* Dev-only bypass — rendered only in local development */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-5 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 p-5">
+            <p className="mb-3 text-xs font-bold uppercase tracking-wider text-amber-500">
+              ⚡ Dev Login — localhost only
+            </p>
+            <form action="/auth/dev" method="get" className="flex gap-2">
+              <input type="hidden" name="next" value="/dashboard" />
+              <input
+                name="email"
+                type="email"
+                placeholder="your-admin@email.com"
+                required
+                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-500/40"
+              />
+              <button
+                type="submit"
+                className="shrink-0 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-400 active:scale-95"
+              >
+                Sign in
+              </button>
+            </form>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Signs in via Supabase admin API — no GLM app needed.
+              Your <code className="rounded bg-muted px-1 font-mono">is_admin</code> /{' '}
+              <code className="rounded bg-muted px-1 font-mono">is_superadmin</code> flags
+              in the profiles table are respected automatically.
+            </p>
+          </div>
+        )}
       </div>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
@@ -111,6 +142,7 @@ function LoginForm() {
     </AuthShell>
   )
 }
+
 
 export default function LoginPage() {
   return (
