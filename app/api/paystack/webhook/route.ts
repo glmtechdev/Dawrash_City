@@ -31,12 +31,18 @@ export async function POST(req: Request) {
   const event = payload.event
   const data = payload.data
 
+  // Only process successful charge events — ignore transfers, subscriptions, etc.
+  if (event !== 'charge.success') {
+    console.log(`[paystack/webhook] ignored event=${event}`)
+    return new Response('ignored', { status: 200 })
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
 
     // Map Paystack data to our transactions table shape
     const reference = String(data.reference ?? data.trxref ?? '')
-    const amountCharged = Number(data.amount ?? 0) // paystack amount is in kobo (smallest unit)
+    const amountCharged = Number(data.amount ?? 0) // in kobo
     const status = String(data.status ?? '')
     const memberId = data.metadata?.member_id ?? null
     const intendedAmount = Number(data.metadata?.intended_amount_kobo ?? data.metadata?.intendedAmountKobo ?? 0)
@@ -47,15 +53,20 @@ export async function POST(req: Request) {
       return new Response('no reference', { status: 400 })
     }
 
-    // Upsert transaction by reference
-    // If the client sent an intended amount (net credit), record that as amount_kobo. Otherwise, fall back to charged amount.
+    // Net credit to record: prefer intended amount (what we track as savings),
+    // fall back to gross charged amount if metadata is absent.
     const recordedAmount = intendedAmount > 0 ? intendedAmount : amountCharged
+    // Fee = gross - net (only meaningful when intendedAmount is present)
+    const feeKobo = intendedAmount > 0 ? amountCharged - intendedAmount : 0
 
-    const { error } = await supabase.from('transactions').upsert(
+    const { error: upsertError } = await supabase.from('transactions').upsert(
       [
         {
           reference,
           amount_kobo: recordedAmount,
+          intended_amount_kobo: intendedAmount > 0 ? intendedAmount : null,
+          charged_amount_kobo: amountCharged,
+          fee_kobo: feeKobo > 0 ? feeKobo : null,
           member_id: memberId,
           method: 'Paystack',
           status: status === 'success' ? 'confirmed' : status,
@@ -65,9 +76,57 @@ export async function POST(req: Request) {
       { onConflict: 'reference' },
     )
 
-    if (error) {
-      console.error('[paystack/webhook] upsert error', error.message)
+    if (upsertError) {
+      console.error('[paystack/webhook] upsert error', upsertError.message)
       return new Response('db error', { status: 500 })
+    }
+
+    // ── Auto-complete: mark profile as completed if full target is reached ──
+    // Only attempt if we have a member_id and this transaction was successful.
+    if (memberId && status === 'success') {
+      try {
+        // Fetch the member's plot target
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('plots, status')
+          .eq('id', memberId)
+          .maybeSingle()
+
+        if (profileError) {
+          console.warn('[paystack/webhook] could not fetch profile for completion check:', profileError.message)
+        } else if (profile && profile.status !== 'completed') {
+          // Sum all confirmed transactions for this member (including this one)
+          const { data: txRows, error: txError } = await supabase
+            .from('transactions')
+            .select('amount_kobo')
+            .eq('member_id', memberId)
+            .eq('status', 'confirmed')
+
+          if (txError) {
+            console.warn('[paystack/webhook] could not fetch transactions for completion check:', txError.message)
+          } else {
+            const PRICE_PER_PLOT_KOBO = 2_000_000 * 100
+            const totalConfirmedKobo = (txRows ?? []).reduce((sum, t) => sum + Number(t.amount_kobo ?? 0), 0)
+            const targetKobo = (profile.plots ?? 0) * PRICE_PER_PLOT_KOBO
+
+            if (targetKobo > 0 && totalConfirmedKobo >= targetKobo) {
+              const { error: completeError } = await supabase
+                .from('profiles')
+                .update({ status: 'completed' })
+                .eq('id', memberId)
+
+              if (completeError) {
+                console.warn('[paystack/webhook] could not set status=completed:', completeError.message)
+              } else {
+                console.log(`[paystack/webhook] member ${memberId} marked as completed`)
+              }
+            }
+          }
+        }
+      } catch (completionErr) {
+        // Non-fatal — don't fail the webhook response over a completion check
+        console.error('[paystack/webhook] completion check error', completionErr)
+      }
     }
 
     console.log(`[paystack/webhook] processed event=${event} reference=${reference} status=${status}`)

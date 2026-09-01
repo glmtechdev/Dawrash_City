@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,12 +30,13 @@ import {
   Lock,
   ShieldCheck,
   CheckCircle2,
+  XCircle,
   Clock,
   Target,
-  Sparkles,
   Calculator,
   ChevronDown,
   ChevronUp,
+  X,
 } from 'lucide-react'
 
 type Filter = 'all' | 'confirmed' | 'pending'
@@ -55,11 +57,26 @@ function formatDate(iso: string): string {
 }
 
 export function TransactionsContent({ member }: { member: Member }) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [filter, setFilter] = useState<Filter>('all')
   const [amount, setAmount] = useState<string>('')
   const [loadingPay, setLoadingPay] = useState(false)
   const [showCalculator, setShowCalculator] = useState(false)
   const [installments, setInstallments] = useState<number>(3)
+  const [paymentBanner, setPaymentBanner] = useState<'success' | 'failed' | 'cancelled' | null>(null)
+
+  // Read ?payment= param on mount and show the appropriate banner
+  useEffect(() => {
+    const status = searchParams.get('payment')
+    if (status === 'success' || status === 'failed' || status === 'cancelled') {
+      setPaymentBanner(status)
+      // Clean the URL without triggering a reload
+      const url = new URL(window.location.href)
+      url.searchParams.delete('payment')
+      router.replace(url.pathname + (url.search || ''), { scroll: false })
+    }
+  }, [searchParams, router])
 
   const target = targetKobo(member)
   const percent = progressPercent(member)
@@ -151,12 +168,12 @@ export function TransactionsContent({ member }: { member: Member }) {
           amount: totalChargeKobo,
           ref: reference || `dawrash-${Date.now()}`,
           onClose: () => {
-            toast('Payment session cancelled')
+            toast('Payment cancelled')
             setLoadingPay(false)
+            window.location.href = '/transactions?payment=cancelled'
           },
           callback: function () {
-            toast.success('Payment complete! Reconciling in ledger…')
-            window.location.reload()
+            window.location.href = '/transactions?payment=success'
           },
         })
 
@@ -172,6 +189,70 @@ export function TransactionsContent({ member }: { member: Member }) {
 
   return (
     <div className="space-y-8 pb-12">
+      {/* ------------------------------------------------------------- */}
+      {/* 0. PAYMENT RESULT BANNER                                       */}
+      {/* ------------------------------------------------------------- */}
+      {paymentBanner === 'success' && (
+        <div className="flex items-start gap-3 rounded-2xl border border-success/30 bg-success/10 p-4 text-success">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Payment received</p>
+            <p className="text-sm opacity-80">
+              Your contribution is being reconciled in the ledger. It will appear as confirmed once the
+              webhook processes (usually within seconds).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPaymentBanner(null)}
+            className="shrink-0 opacity-60 hover:opacity-100"
+            aria-label="Dismiss"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {paymentBanner === 'cancelled' && (
+        <div className="flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-4 text-warning">
+          <XCircle className="mt-0.5 size-5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Payment cancelled</p>
+            <p className="text-sm opacity-80">
+              You closed the payment window. No charge was made. You can try again whenever you&apos;re ready.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPaymentBanner(null)}
+            className="shrink-0 opacity-60 hover:opacity-100"
+            aria-label="Dismiss"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
+      {paymentBanner === 'failed' && (
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">
+          <XCircle className="mt-0.5 size-5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold">Payment failed</p>
+            <p className="text-sm opacity-80">
+              Something went wrong with your payment. No funds were deducted. Please try again or use a
+              different payment method.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPaymentBanner(null)}
+            className="shrink-0 opacity-60 hover:opacity-100"
+            aria-label="Dismiss"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
       {/* ------------------------------------------------------------- */}
       {/* 1. MAKE A PAYMENT CARD (Redesigned)                           */}
       {/* ------------------------------------------------------------- */}
