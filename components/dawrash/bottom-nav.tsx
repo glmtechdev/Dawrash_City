@@ -32,7 +32,7 @@ export function BottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
               <Link
                 href={item.href}
                 className={cn(
-                  'flex flex-col items-center gap-1 rounded-xl py-1.5 text-xs font-medium transition-colors',
+                  'flex w-full flex-col items-center gap-1 rounded-xl py-1.5 text-xs font-medium transition-colors',
                   active ? 'text-gold' : 'text-muted-foreground hover:text-foreground',
                 )}
                 aria-current={active ? 'page' : undefined}

@@ -150,7 +150,7 @@ export default async function DashboardPage() {
               Your Land Target
             </p>
             <p className="mt-2 font-serif text-2xl font-bold leading-tight">
-              {plotLabel(member.plots)} in Dawrash City
+              {plotLabel(member.plots)}
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
