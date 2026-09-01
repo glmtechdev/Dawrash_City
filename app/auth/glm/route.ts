@@ -21,7 +21,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
-import { decodeJwt } from "jose";
 
 // Force this route to always run dynamically - never cache the redirect
 export const dynamic = "force-dynamic";
@@ -76,18 +75,8 @@ export async function GET(request: NextRequest) {
     const meta = glmUser.user_metadata ?? {};
     fullName = (meta.full_name as string) ?? email.split("@")[0];
   } else {
-    console.warn("[auth/glm] GLM getUser note:", userError?.message, "- attempting JWT decode fallback");
-    try {
-      const payload = decodeJwt(token);
-      if (payload && typeof payload.email === "string") {
-        email = payload.email;
-        const meta = (payload.user_metadata as Record<string, any>) ?? {};
-        glmMemberId = (payload.sub as string) ?? (meta.glm_member_id as string) ?? null;
-        fullName = (meta.full_name as string) ?? email.split("@")[0];
-      }
-    } catch (jwtErr: any) {
-      console.error("[auth/glm] JWT payload decode failed:", jwtErr?.message);
-    }
+    console.error("[auth/glm] GLM token validation failed:", userError?.message);
+    return NextResponse.redirect(`${appOrigin}/login?error=invalid_token`);
   }
 
   if (!email) {

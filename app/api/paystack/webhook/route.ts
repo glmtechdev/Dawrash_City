@@ -9,7 +9,13 @@ export async function POST(req: Request) {
   const raw = await req.text()
 
   const hash = crypto.createHmac('sha512', secret).update(raw).digest('hex')
-  if (hash !== signature) {
+  const hashBuffer = Buffer.from(hash, 'utf8')
+  const sigBuffer = Buffer.from(signature, 'utf8')
+
+  if (
+    hashBuffer.length !== sigBuffer.length ||
+    !crypto.timingSafeEqual(hashBuffer, sigBuffer)
+  ) {
     console.warn('[paystack/webhook] signature mismatch')
     return new Response('signature mismatch', { status: 400 })
   }

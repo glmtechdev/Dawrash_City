@@ -1,6 +1,7 @@
 'use server'
 
 import { createSupabaseAdminClient } from '@/lib/supabase/admin'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   type MemberStatus,
   type PaymentStatus,
@@ -8,6 +9,43 @@ import {
   auditFlags as fallbackAuditFlags,
 } from '@/lib/dawrash-data'
 import { revalidatePath } from 'next/cache'
+
+/* ------------------------------------------------------------------ */
+/*  Authorization Guard for Admin Actions                             */
+/* ------------------------------------------------------------------ */
+
+async function assertAdminSession(): Promise<{ isAuthorized: boolean; error?: string }> {
+  // Allow dev bypass when DEV_FORCE_EMAIL is configured on localhost
+  if (process.env.NODE_ENV === 'development' && process.env.DEV_FORCE_EMAIL?.trim()) {
+    return { isAuthorized: true }
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient()
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return { isAuthorized: false, error: 'Unauthorized: Session expired or invalid.' }
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('is_admin, is_superadmin')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileError || !(profile?.is_admin || profile?.is_superadmin)) {
+      return { isAuthorized: false, error: 'Unauthorized: Admin privileges required.' }
+    }
+
+    return { isAuthorized: true }
+  } catch (err: any) {
+    return { isAuthorized: false, error: err?.message || 'Authorization check failed.' }
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  Database Aligned Types                                            */
@@ -381,6 +419,11 @@ export async function recordManualTransactionAction(input: {
   paidAt?: string
   notes?: string
 }): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
     const reference = input.reference?.trim() || `OFFLINE-${Date.now().toString().slice(-6)}`
@@ -419,6 +462,11 @@ export async function updateTransactionStatusAction(
   transactionId: string,
   status: PaymentStatus,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
     const { error } = await supabase
@@ -446,6 +494,11 @@ export async function issueCertificateAction(
   memberId: string,
   plotNumbers: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
     const now = new Date().toISOString()
@@ -479,6 +532,11 @@ export async function updateCertificateDeliveryAction(
   certificateId: string,
   delivered: boolean,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
     const now = delivered ? new Date().toISOString() : null
@@ -507,6 +565,11 @@ export async function updateCertificateDeliveryAction(
 export async function resolveAuditFlagAction(
   flagId: string,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
     const { error } = await supabase
@@ -538,6 +601,11 @@ export async function updateMemberAdminRoleAction(
   role: 'is_admin' | 'is_superadmin',
   value: boolean,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
     const { error } = await supabase
@@ -565,6 +633,11 @@ export async function updateMemberPlotsAction(
   memberId: string,
   plots: number,
 ): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
   try {
     const supabase = createSupabaseAdminClient()
     const { error } = await supabase

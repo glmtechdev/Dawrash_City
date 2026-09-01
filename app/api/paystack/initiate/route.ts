@@ -10,18 +10,14 @@ export async function POST(req: Request) {
       return new Response(JSON.stringify({ error: 'Missing PAYSTACK_SECRET_KEY' }), { status: 500 })
     }
 
-    let email = bodyEmail
-    let memberId = bodyMemberId
+    const supabase = await createSupabaseServerClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
-    // If email or memberId not provided, try to infer from session
-    if (!email || !memberId) {
-      const supabase = await createSupabaseServerClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        email = email || user.email || undefined
-        memberId = memberId || user.id || undefined
-      }
-    }
+    // Enforce authenticated session if available
+    const email = user?.email || bodyEmail
+    const memberId = user?.id || bodyMemberId
 
     if (!amountKobo || !email) {
       return new Response(JSON.stringify({ error: 'Missing amountKobo or email' }), { status: 400 })
