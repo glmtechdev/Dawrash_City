@@ -1,5 +1,5 @@
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
-import { Home } from 'lucide-react'
 
 export function Brand({
   className,
@@ -14,8 +14,15 @@ export function Brand({
   const subColor = tone === 'light' ? 'text-navy-foreground/60' : 'text-muted-foreground'
   return (
     <div className={cn('flex items-center gap-3', className)}>
-      <span className="flex size-9 items-center justify-center rounded-xl bg-gold text-gold-foreground">
-        <Home className="size-5" aria-hidden />
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#0F1923]">
+        <Image
+          src="/dawarshIcon.png"
+          alt="Dawrash City"
+          width={36}
+          height={36}
+          className="object-contain"
+          priority
+        />
       </span>
       <div className="leading-tight">
         <p className={cn('font-serif text-lg font-bold tracking-tight', textColor)}>

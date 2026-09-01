@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const size = { width: 32, height: 32 }
+export const size = { width: 48, height: 48 }
 export const contentType = 'image/png'
 
 export default function Icon() {
@@ -8,25 +8,24 @@ export default function Icon() {
     (
       <div
         style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
+          width: 48,
+          height: 48,
+          borderRadius: 10,
           background: '#0F1923',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}
       >
-        {/* Simple house/land mark in gold */}
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 20 20"
-          fill="none"
-        >
-          {/* Roof */}
-          <path d="M10 3L18 10H15V17H5V10H2L10 3Z" fill="#8B6914" />
-        </svg>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/dawarshIcon.png`}
+          width={42}
+          height={42}
+          style={{ objectFit: 'contain' }}
+          alt=""
+        />
       </div>
     ),
     { ...size },
