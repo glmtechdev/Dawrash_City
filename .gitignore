@@ -74,3 +74,4 @@ next-env.d.ts
 # Optional: local test / coverage data
 .cache/
 .parcel-cache/
+.vercel
