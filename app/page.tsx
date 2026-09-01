@@ -6,11 +6,9 @@ import Image from 'next/image'
 import { Brand } from '@/components/dawrash/brand'
 import {
   ShieldCheck,
-  Building2,
   ScrollText,
   ArrowRight,
   Lock,
-  Layers,
   LandPlot,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -63,7 +61,7 @@ export default function LandingPage() {
         </header>
 
         {/* Center Content Deck Area */}
-        <div className="relative my-auto flex w-full flex-1 items-center justify-center py-4 sm:py-6">
+        <div className="relative my-auto flex w-full min-h-0 flex-1 items-center justify-center overflow-y-auto py-4 sm:py-6">
           {/* TAB 1: HERO / EMOTIONAL PRIMING */}
           {activeTab === 'hero' && (
             <div className="animate-in fade-in zoom-in-95 duration-500 flex w-full max-w-2xl flex-col justify-center">
@@ -114,40 +112,34 @@ export default function LandingPage() {
               </h2>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                <div className="flex items-start gap-3 rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:flex-col sm:p-5">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold">
-                    <ShieldCheck className="size-5" />
+                <div className="flex flex-col rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-serif text-base font-bold text-white sm:text-lg">Surveyed & Reserved</h3>
+                    <span className="font-serif text-2xl font-extrabold text-gold/40 sm:text-3xl">01</span>
                   </div>
-                  <div>
-                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Surveyed & Reserved</h3>
-                    <p className="mt-1 text-xs leading-relaxed text-white/70">
-                      Plots are officially surveyed and registered under GLM trusteeship from your initial contribution.
-                    </p>
-                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-white/70">
+                    Plots are officially surveyed and registered under GLM trusteeship from your initial contribution.
+                  </p>
                 </div>
 
-                <div className="flex items-start gap-3 rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:flex-col sm:p-5">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold">
-                    <Building2 className="size-5" />
+                <div className="flex flex-col rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-serif text-base font-bold text-white sm:text-lg">Instant Inflows</h3>
+                    <span className="font-serif text-2xl font-extrabold text-gold/40 sm:text-3xl">02</span>
                   </div>
-                  <div>
-                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Instant Inflows</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-white/70">
-                        Use the secure in‑app Paystack checkout for instant credit and automated reconciliation toward your land target. Members are responsible for standard processor fees.
-                      </p>
-                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-white/70">
+                    Use the secure in-app Paystack checkout for instant credit and automated reconciliation toward your land target. Members are responsible for standard processor fees.
+                  </p>
                 </div>
 
-                <div className="flex items-start gap-3 rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:flex-col sm:p-5">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gold/20 text-gold">
-                    <Layers className="size-5" />
+                <div className="flex flex-col rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md transition-all hover:border-gold/40 sm:p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-serif text-base font-bold text-white sm:text-lg">Zero Interest or Fees</h3>
+                    <span className="font-serif text-2xl font-extrabold text-gold/40 sm:text-3xl">03</span>
                   </div>
-                  <div>
-                    <h3 className="font-serif text-base font-bold text-white sm:mt-3.5 sm:text-lg">Zero Interest or Fees</h3>
-                      <p className="mt-1 text-xs leading-relaxed text-white/70">
-                        100% of your platform contributions go toward your land target. Note: payment processor fees (Paystack) may apply and are displayed before payment - these fees are paid by the member.
-                      </p>
-                  </div>
+                  <p className="mt-2 text-xs leading-relaxed text-white/70">
+                    100% of your platform contributions go toward your land target. Note: payment processor fees (Paystack) may apply and are displayed before payment - these fees are paid by the member.
+                  </p>
                 </div>
               </div>
             </div>
