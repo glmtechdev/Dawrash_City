@@ -1,7 +1,7 @@
 Getting your database table list with column details.
 ## Your tables (row counts) + columns
 
-### `public.profiles` — **48 rows**
+### `public.profiles` - **48 rows**
 Columns:
 - `id` (uuid, PK)
 - `full_name` (text)
@@ -20,7 +20,7 @@ Columns:
 
 ---
 
-### `public.transactions` — **0 rows**
+### `public.transactions` - **0 rows**
 Columns:
 - `id` (uuid, PK)
 - `member_id` (uuid)
@@ -38,7 +38,7 @@ Columns:
 
 ---
 
-### `public.audit_flags` — **0 rows**
+### `public.audit_flags` - **0 rows**
 Columns:
 - `id` (uuid, PK)
 - `transaction_id` (uuid)
@@ -54,7 +54,7 @@ Columns:
 
 ---
 
-### `public.certificates` — **0 rows**
+### `public.certificates` - **0 rows**
 Columns:
 - `id` (uuid, PK)
 - `member_id` (uuid, unique)

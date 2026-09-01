@@ -1,7 +1,7 @@
 # Dawrash City - Product Requirements Document
 
-**Version:** 1.2
-**Last updated:** August 2026
+**Version:** 2.1
+**Last updated:** September 2026
 **Status:** Active Development
 **Owner:** Gospel Labour Ministry (GLM)
 
@@ -57,13 +57,14 @@ Dawrash City solves all of these.
 ### 5.1 Member
 A registered GLM church member who has been approved for the Dawrash City savings programme.
 
-**Entry point:** GLM Members app → Profile → "Open Dawrash City" button
+**Entry point:** GLM Members app -> Profile -> "Open Dawrash City" button
 **Access:** Pure SSO via GLM session token (`/auth/glm?token=<jwt>`)
 **Capabilities:**
 - View savings progress and payment history
 - Complete onboarding (plot selection + covenant signing)
 - Make payments directly via Paystack (card, USSD, bank transfer through Paystack)
-- Increase their plot target from the Profile page
+- Increase their plot target from the Profile page (up to the self-service cap of 5 personal plots)
+- Apply for a target increase beyond 5 plots after fully completing payment
 - View land certificate status
 
 ### 5.2 Admin (Super Admin)
@@ -71,12 +72,13 @@ A GLM staff member with elevated access to the Dawrash admin panel.
 
 **Entry point:** `/admin` route, gated by `is_admin` or `is_superadmin` flag on the member profile
 **Capabilities:**
-- View programme-wide savings totals and progress
+- View programme-wide savings totals and progress, including church building plot counter
 - Manage all member records (plots, admin roles)
 - Record offline payments (cash, POS, direct bank transfers made outside Paystack)
 - Manually update transaction statuses (confirm or reject pending transactions)
 - Raise and resolve audit flags
 - Issue land certificates to completed members and mark delivery
+- Run one-time plot cap migration to reset any legacy targets above 5 down to 5
 
 ---
 
@@ -88,40 +90,57 @@ A GLM staff member with elevated access to the Dawrash admin panel.
 
 ```
 Member opens GLM Members app
-        ↓
+        |
 Logs in with their GLM credentials (email + password)
-        ↓
-Visits Profile page → clicks "Open Dawrash City"
-        ↓
+        |
+Visits Profile page -> clicks "Open Dawrash City"
+        |
 GLM app reads active Supabase session token and redirects to:
 https://dawrashcity.com/auth/glm?token=<jwt>
-        ↓
+        |
 /auth/glm route on Dawrash:
   1. Validates GLM JWT via GLM Supabase project (getUser)
   2. Extracts member identity (email, name, GLM member ID)
   3. Upserts profile row in Dawrash DB via Service Role Client
   4. Generates direct server-side session token
   5. Redirects user into Dawrash app:
-       - First visit (onboarding incomplete) → /onboarding/plots
-       - Returning member                    → /dashboard
+       - First visit (onboarding incomplete) -> /onboarding/plots
+       - Returning member                    -> /dashboard
 ```
 
 *Note: Direct email magic-link log-in on Dawrash is disabled. All authentication flows originate from the GLM Members app SSO.*
 
 ---
 
-## 7. Onboarding Flow
+## 7. Plot Pricing Model
+
+Each plot costs **N1,000,000**. Every personal plot a member purchases is paired with one church-building plot, also funded by the member. This means:
+
+- A member who selects 1 personal plot commits to paying **N2,000,000** total (1 personal + 1 church)
+- A member who selects 3 personal plots commits to paying **N6,000,000** total (3 personal + 3 church)
+- The member's dashboard shows their personal plot count (e.g. "3 Plots") and their total payment commitment
+
+The church-building plots are tracked separately in the admin overview as a running total. They are not assigned to members - they go to the Gospel Labour Ministry church building project.
+
+**Self-service cap:** Members may select between 1 and 5 personal plots during onboarding or via the Update Target flow. To go beyond 5, a member must fully complete payment for their current target and then submit a Target Increase Request for admin approval.
+
+---
+
+## 8. Onboarding Flow
 
 New members landing on `/onboarding/plots` for the first time complete two steps, which persist data directly to Supabase:
 
 ### Step 1 - Plot Selection (`/onboarding/plots`)
-- Member selects their desired number of plots (₦2,000,000 per plot) - 1, 2, or more
-- Clicks "Continue" → triggers `savePlotSelection` Server Action
+- Member selects their desired number of personal plots (1 to 5)
+- Each option card shows: personal plots, matching church plots, and total payment amount
+- A pricing explainer box shows the N1,000,000 per plot breakdown
+- Clicks "Continue" -> triggers `savePlotSelection` Server Action
 - Writes `plots` count to member profile row in Dawrash Supabase
-- Members can increase their target at any time from the Profile page; they cannot reduce it below what they have already paid
+- Members can update their target at any time from the Profile page (within the 5-plot self-service cap)
 
 ### Step 2 - Covenant Signing (`/onboarding/covenant`)
-- Member reads the full Dawrash City Land Savings Covenant
+- Member reads the full Dawrash City Land Savings Covenant (Version 2.0)
+- The covenant text reflects the paired plot model: N1,000,000 per plot, N2,000,000 total per personal plot selected
 - Ticks acceptance checkbox and clicks "I Accept & Continue"
 - Triggers `acceptCovenant` Server Action
 - Records `covenant_signed_at` timestamp, sets `status = 'active'`, and `onboarding_complete = true` in Supabase
@@ -129,14 +148,42 @@ New members landing on `/onboarding/plots` for the first time complete two steps
 
 ---
 
-## 8. Member Dashboard
+## 9. Target Management
+
+### Self-service updates (active members)
+Active members (status = active) with fewer than 5 personal plots can adjust their target from the Profile page using the Update Target dialog. The dialog:
+- Shows personal plot count, matching church plot count, and total payment amount
+- Prevents reducing the target below the number of personal plots already fully paid
+- Caps the increment at 5 personal plots
+
+### Target increase requests (completed members)
+Members who have fully paid for all their personal plots (status = completed) and are at the 5-plot cap can submit a Target Increase Request. The request:
+- Is stored in the `target_increase_requests` Supabase table
+- Requires the member to specify how many total personal plots they want
+- Allows an optional reason
+- Blocks duplicate pending requests
+- Is reviewed and approved or rejected by an admin
+
+### Legacy migration
+Members registered under the old N2,000,000/plot model had their plots reset to 0. They are required to re-select their target from the Profile page under the new pricing model. The admin Overview panel includes a one-time "Cap Plots to 5" button that sets any member with plots > 5 down to exactly 5. Members with 0-5 plots are untouched.
+
+---
+
+## 10. Member Dashboard
 
 ### Savings Summary Card
 - Progress ring showing percentage saved (0-100%)
-- Plots reserved (e.g. "3 Plots in Dawrash City")
+- Personal plots reserved (e.g. "3 Plots personal + 3 church")
+- Total payment commitment (e.g. N6,000,000)
 - Saved amount, remaining amount, total target
-- Animated progress bar
-- Milestone badges: 25% · 50% · 75% · 100%
+- Animated progress bar with milestone badges at 25%, 50%, 75%, 100%
+- Stat showing how many personal plots are fully paid and how many church plots have been funded
+
+### Quick Stats
+- Member since date
+- Payment count (confirmed and pending)
+- Church plots funded
+- Covenant status
 
 ### Recent Payments
 - Last 5 transactions fetched live from Supabase `transactions` table
@@ -145,34 +192,35 @@ New members landing on `/onboarding/plots` for the first time complete two steps
 
 ---
 
-## 9. Payment Flow
+## 11. Payment Flow
 
 ### Primary path - Paystack inline checkout (`/transactions`)
 Members pay directly inside the app via the Paystack inline SDK (card, USSD, bank transfer through Paystack). The full automated flow:
 
 ```
 Member enters amount on /transactions page
-        ↓
+        |
 UI calculates Paystack fee and shows total charge before confirmation
-        ↓
+        |
 Member clicks "Pay with Paystack"
-        ↓
+        |
 POST /api/paystack/initiate
   - Calls Paystack transaction/initialize API
   - Embeds member_id and intended_amount_kobo in Paystack metadata
   - Returns authorization reference to client
-        ↓
+        |
 Paystack inline popup opens (PaystackPop SDK)
-        ↓
+        |
 Member completes payment on Paystack
-        ↓
-Paystack fires charge.success webhook → POST /api/paystack/webhook
+        |
+Paystack fires charge.success webhook -> POST /api/paystack/webhook
   - HMAC-SHA512 signature verified
   - Transaction upserted into Supabase transactions table
   - status set to 'confirmed', method set to 'Paystack'
   - intended_amount_kobo recovered from metadata (net savings credit, before fees)
+  - Auto-completion check: if total confirmed >= plots x N2,000,000, status set to 'completed'
   - Idempotent: safe to re-deliver
-        ↓
+        |
 Member's dashboard and transaction history reflect the confirmed payment
 ```
 
@@ -180,7 +228,7 @@ No admin action is required for Paystack payments. The webhook handles reconcili
 
 ### Fee handling
 Members are responsible for all Paystack processing fees. The UI calculates and displays the estimated fee before payment:
-- Fee formula: `round(intendedAmount × 1.5%) + ₦100` (configurable via env vars)
+- Fee formula: `round(intendedAmount x 1.5%) + N100` (configurable via env vars)
 - The intended amount (net savings credit) is stored in `transactions.amount_kobo`
 - The total charged amount (including fee) is stored in `transactions.charged_amount_kobo`
 - A fee breakdown and installment projection tool is available to help members plan contributions
@@ -190,44 +238,47 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 
 ---
 
-## 10. Transaction History
+## 12. Transaction History
 
 - Live transaction listing queried from Supabase `transactions` table
-- Interactive filter tabs: All · Confirmed · Pending · Failed
+- Interactive filter tabs: All / Confirmed / Pending / Failed
 - Per-row: date, reference, method, amount, fee (if any), status badge
 - Summary strip: total saved, pending total, progress %
 
 ---
 
-## 11. Profile Page
+## 13. Profile Page
 
 - Member name, email, initials avatar loaded live from Supabase
-- Plot target badge
-- Member since date & covenant signed timestamp
-- Savings snapshot (saved / target / progress %)
-- **Update Target** button - allows active members to increase their plot count; cannot reduce below confirmed-paid plots; hidden for completed members
+- Personal plot target badge
+- Member since date and covenant signed timestamp
+- Savings snapshot: saved / target / progress % with church contribution note
+- **Update Target** button - visible for active members with fewer than 5 personal plots. Shows paired cost breakdown. Cannot reduce below confirmed-paid plots.
+- **Request Increase** button - visible for completed members at the 5-plot cap. Submits a target increase request for admin review.
+- Signed covenant text (Version 2.0)
 - Sign out button
 
 ---
 
-## 12. Admin Dashboard
+## 14. Admin Dashboard
 
 ### Overview Tab
-- 4 stat cards: Members, Total Collected, Total Target, Completed
+- 5 stat cards: Total Inflows Collected, Personal Plots Reserved, Church Building Plots, Church Savers count, Audit Discrepancies
+- Church Building Plots card shows total church plots reserved (always equal to personal plots reserved) and how many are fully funded
 - Status breakdown bars: Active / Completed / Pending Covenant
 - Overall progress ring
-- Bar chart: savings vs target per member (Recharts)
+- One-time "Cap Plots to 5" maintenance button - visible only when any member has plots > 5. Opens a confirmation dialog showing how many members will be affected.
 
 ### Members Tab
 - Searchable, filterable member table
 - Filter by status (Active / Completed / Pending Covenant)
-- Click row → Member Detail Drawer (profile, progress, transactions)
+- Click row -> Member Detail Drawer (profile, progress, transactions)
 - Admin can update a member's plot count and admin role from the drawer
 
 ### Transactions Tab
 - Full ledger of all transactions (Paystack and offline)
 - Searchable by reference, member name, email, or notes
-- Filter by status: All · Confirmed · Pending · Failed
+- Filter by status: All / Confirmed / Pending / Failed
 - Pending transactions show Confirm and Reject action buttons
 - "Record Offline Transfer" button for cash, POS, and direct bank payments
 
@@ -245,7 +296,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 
 ---
 
-## 13. Data Model (Dawrash Supabase Project)
+## 15. Data Model (Dawrash Supabase Project)
 
 ### `profiles`
 | Column | Type | Notes |
@@ -255,7 +306,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 | email | text | unique |
 | initials | text | derived from full_name |
 | glm_member_id | uuid | links back to GLM Members DB |
-| plots | smallint | 1 or more; set during onboarding, can be increased from Profile |
+| plots | smallint | personal plot target (1-5); set during onboarding, updatable from Profile up to the cap |
 | nuban | text | payment account, set by admin |
 | bank | text | default Wema Bank |
 | status | enum | pending_covenant / active / completed |
@@ -271,7 +322,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 |---|---|---|
 | id | uuid | PK |
 | member_id | uuid | FK to profiles.id |
-| amount_kobo | bigint | intended savings credit (naira × 100, excluding fee) |
+| amount_kobo | bigint | intended savings credit (naira x 100, excluding fee) |
 | charged_amount_kobo | bigint | total amount charged to member including Paystack fee |
 | intended_amount_kobo | bigint | same as amount_kobo; preserved from Paystack metadata |
 | fee_kobo | bigint | Paystack fee kobo; 0 for offline transactions |
@@ -309,9 +360,22 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 | delivered_at | timestamptz | delivery date |
 | created_at | timestamptz | row creation timestamp |
 
+### `target_increase_requests`
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid | PK |
+| member_id | uuid | FK to profiles.id |
+| current_plots | int | member's plot count at time of request |
+| requested_plots | int | total personal plots being requested |
+| reason | text | optional note from the member |
+| status | text | pending / approved / rejected |
+| reviewed_by | uuid | nullable FK to profiles.id (admin who reviewed) |
+| reviewed_at | timestamptz | review timestamp |
+| created_at | timestamptz | request submission timestamp |
+
 ---
 
-## 14. API Routes
+## 16. API Routes
 
 | Route | Method | Auth | Purpose |
 |---|---|---|---|
@@ -321,7 +385,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 
 ---
 
-## 15. Integrations
+## 17. Integrations
 
 ### GLM Members DB (`innidgegsjjeclvkskev.supabase.co`)
 - **Protocol**: Direct token validation via `getUser(token)` inside `/auth/glm`
@@ -339,7 +403,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 
 ---
 
-## 16. Security & Environment Variables
+## 18. Security & Environment Variables
 
 - **RLS Enabled**: On all Supabase database tables.
 - **Service Role Key**: Stored strictly in `SUPABASE_SERVICE_ROLE_KEY` environment variable. Never exposed to client bundles.
@@ -364,7 +428,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 - `PAYSTACK_SECRET_KEY` - server-only; used to sign/verify webhooks and call Paystack API
 - `NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY` - client-side; passed to PaystackPop SDK
 - `NEXT_PUBLIC_PAYSTACK_FEE_PERCENT` - default `0.015` (1.5%)
-- `NEXT_PUBLIC_PAYSTACK_FIXED_FEE_KOBO` - default `10000` (₦100)
+- `NEXT_PUBLIC_PAYSTACK_FIXED_FEE_KOBO` - default `10000` (N100)
 
 **App**
 - `NEXT_PUBLIC_SITE_URL`
@@ -375,7 +439,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 
 ---
 
-## 17. Routes
+## 19. Routes
 
 | Route | Type | Access | Purpose |
 |---|---|---|---|
@@ -385,7 +449,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 | `/verify` | Static | Public | SSO guidance |
 | `/auth/glm` | Dynamic | Public (JWT required) | SSO entry point |
 | `/auth/callback` | Dynamic | Internal | Auth redirect handler |
-| `/onboarding/plots` | Static | Authenticated | Plot selection |
+| `/onboarding/plots` | Static | Authenticated | Plot selection (1-5 personal plots) |
 | `/onboarding/covenant` | Static | Authenticated | Covenant signing |
 | `/dashboard` | Dynamic | Authenticated member | Member dashboard |
 | `/transactions` | Dynamic | Authenticated member | Payment history and Paystack checkout |
@@ -394,14 +458,44 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 
 ---
 
-## 18. Writing & Content Guidelines
+## 20. Writing & Content Guidelines
 
-To keep product copy clear, consistent, and human-reviewed, follow these rules when editing the PRD or adding user-facing text in the app.
+These rules apply to all user-facing copy in the app and all text in this PRD. They are not suggestions.
 
-- **No em dashes or typographic dashes:** Do not use the em dash character (EM DASH) or other typographic dashes in copy. Use simple punctuation: periods, commas, or a plain hyphen (-) only when needed for compound words.
-- **Avoid AI slops:** Do not use vague, generic, or marketing-style phrases often produced by generative tools. Examples to avoid: "leveraging", "synergy", "AI-powered", "cutting-edge", "best-in-class". Prefer concrete, specific language describing what the product does and why it matters.
-- **Keep sentences short and factual:** Aim for one idea per sentence and avoid flowery or ambiguous wording. Replace abstract claims with concrete outcomes and expected user actions.
-- **Provide source and context for copy changes:** When changing UI copy, include the file path and the exact string being changed in the PR description so reviewers can verify the change.
-- **Human review required:** Any copy created or suggested by an AI assistant must be reviewed and approved by a human owner before merging to `main`.
+### No em dashes
 
-These guidelines are authoritative for all future PRD updates and UI text changes in the repository.
+Do not use the em dash character (U+2014) anywhere in app copy or this document. It is not permitted in JSX strings, button labels, descriptions, toast messages, dialog text, or inline comments that appear in UI.
+
+Use a comma, a period, or a plain hyphen (-) instead. A plain hyphen is only acceptable in compound words (e.g. "church-building plot"), not as a sentence separator.
+
+Wrong: `Each plot is paired with a church plot - both funded by you`
+Right: `Each plot is paired with a church plot, funded by you.`
+
+### No AI slop
+
+Do not use vague or inflated language. The following words and phrases are banned from app copy and PRD text:
+
+- leveraging, synergy, seamless, robust, cutting-edge, best-in-class
+- empower, supercharge, unlock, transform, revolutionize
+- AI-powered, next-generation, world-class, state-of-the-art
+- "we believe", "our mission", "at the heart of"
+
+Replace every instance with a concrete, factual description of what the product does or what the user will see.
+
+Wrong: `Seamlessly track your savings journey`
+Right: `See how much you have saved and how much is left.`
+
+### Short sentences
+
+One idea per sentence. If a sentence needs more than one clause, split it.
+
+### Numbers and currency
+
+Always write naira amounts with the naira sign and commas. Do not abbreviate.
+
+Right: N1,000,000 / N2,000,000 / N6,000,000
+Wrong: 1M, N1M, 1,000,000 naira
+
+### Human review required
+
+Any copy written or suggested by an AI assistant must be reviewed and approved by a human owner before it is merged to `main`. The reviewer must check for em dashes, slop phrases, and currency formatting before approving.

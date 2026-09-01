@@ -103,7 +103,7 @@ function LoginForm() {
           </a>
         </div>
 
-        {/* Dev-only bypass — rendered only in local development */}
+        {/* Dev-only bypass - rendered only in local development */}
         {process.env.NODE_ENV === 'development' && (
           <div className="mt-5 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 p-5">
             <p className="mb-3 text-xs font-bold uppercase tracking-wider text-amber-500">

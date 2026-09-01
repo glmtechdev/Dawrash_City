@@ -9,7 +9,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ── Dev bypass — no Supabase calls, no network needed ────────────
+  // ── Dev bypass - no Supabase calls, no network needed ────────────
   // When DEV_FORCE_EMAIL is set in .env.local, grant unconditional
   // superadmin access so the /admin dashboard is accessible on localhost
   // without going through GLM SSO or any outbound network request.

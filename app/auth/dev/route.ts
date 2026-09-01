@@ -1,7 +1,7 @@
 /**
  * GET /auth/dev?email=<your@email.com>&next=/admin
  * ─────────────────────────────────────────────────────────────────
- * LOCAL DEVELOPMENT ONLY — returns 404 in production.
+ * LOCAL DEVELOPMENT ONLY - returns 404 in production.
  *
  * Sends a Supabase magic link OTP email using the CLIENT-SIDE anon key
  * (no admin API, no server-side network calls), then shows a page where
@@ -10,7 +10,7 @@
  * This avoids the admin generateLink → verifyOtp flow entirely so it
  * works even when the dev machine has restricted outbound DNS/network.
  *
- * Usage: Use the "Dev Login" form on /login — it submits here.
+ * Usage: Use the "Dev Login" form on /login - it submits here.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const DAWRASH_URL  = process.env.NEXT_PUBLIC_SUPABASE_URL!
     const DAWRASH_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-    // Verify the OTP — this exchanges it for a session
+    // Verify the OTP - this exchanges it for a session
     const supabase = createClient(DAWRASH_URL, DAWRASH_ANON, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
@@ -122,7 +122,7 @@ function renderHtml(email: string, error: string, next: string, otpSent = false)
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dev Login — Dawrash City</title>
+  <title>Dev Login - Dawrash City</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #0a1017; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 1rem; }
@@ -143,10 +143,10 @@ function renderHtml(email: string, error: string, next: string, otpSent = false)
 <body>
   <div class="card">
     <h1>⚡ Dev Login</h1>
-    <p class="sub">Localhost bypass — not available in production</p>
+    <p class="sub">Localhost bypass - not available in production</p>
 
     ${error ? `<div class="error">${error}</div>` : ''}
-    ${otpSent ? `<div class="success">✅ Magic link / OTP sent to <strong>${email}</strong> — check your inbox and enter the 6-digit code below.</div>` : ''}
+    ${otpSent ? `<div class="success">✅ Magic link / OTP sent to <strong>${email}</strong> - check your inbox and enter the 6-digit code below.</div>` : ''}
 
     ${!otpSent ? `
     <form action="/auth/dev" method="get">
