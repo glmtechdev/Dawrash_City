@@ -13,13 +13,16 @@ import {
   savedKobo,
   targetKobo,
   progressPercent,
-  PRICE_PER_PLOT_KOBO,
+  plotsFullyPaid,
+  churchPlotsContributed,
+  PAYMENT_PER_PERSONAL_PLOT_KOBO,
 } from '@/lib/dawrash-data'
 import {
   Building2,
   ArrowRight,
   TrendingUp,
   LandPlot,
+  Church,
   CalendarDays,
   ScrollText,
   Sparkles,
@@ -75,7 +78,8 @@ export default async function DashboardPage() {
   const target = targetKobo(member)
   const remaining = Math.max(0, target - saved)
   const percent = progressPercent(member)
-  const plotsDone = Math.floor(saved / PRICE_PER_PLOT_KOBO)
+  const plotsDone = plotsFullyPaid(member)
+  const churchPlotsDone = churchPlotsContributed(member)
   const plotsRemaining = member.plots - plotsDone
 
   const confirmedCount = member.transactions.filter((t) => t.status === 'confirmed').length
@@ -150,7 +154,10 @@ export default async function DashboardPage() {
               Your Land Target
             </p>
             <p className="mt-2 font-serif text-2xl font-bold leading-tight">
-              {plotLabel(member.plots)}
+              {plotLabel(member.plots)} personal
+            </p>
+            <p className="text-xs text-muted-foreground/80">
+              + {plotLabel(member.plots)} church · {formatNaira(PAYMENT_PER_PERSONAL_PLOT_KOBO * member.plots)} total commitment
             </p>
 
             <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -177,12 +184,20 @@ export default async function DashboardPage() {
             <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-secondary-foreground/70">
               <span className="flex items-center gap-1.5">
                 <LandPlot className="size-3.5 text-gold" aria-hidden />
-                {plotsDone > 0 ? `${plotsDone} plot${plotsDone > 1 ? 's' : ''} fully paid` : 'No plots fully paid yet'}
+                {plotsDone > 0
+                  ? `${plotsDone} personal plot${plotsDone > 1 ? 's' : ''} fully paid`
+                  : 'No plots fully paid yet'}
               </span>
+              {churchPlotsDone > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Church className="size-3.5 text-gold" aria-hidden />
+                  {churchPlotsDone} church plot{churchPlotsDone > 1 ? 's' : ''} funded
+                </span>
+              )}
               {plotsRemaining > 0 && (
                 <span className="flex items-center gap-1.5">
                   <TrendingUp className="size-3.5 text-gold" aria-hidden />
-                  {plotsRemaining} plot{plotsRemaining > 1 ? 's' : ''} remaining
+                  {plotsRemaining} personal plot{plotsRemaining > 1 ? 's' : ''} remaining
                 </span>
               )}
             </div>
@@ -229,7 +244,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* ── Quick stats row ── */}
-      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4 text-gold" aria-hidden />
@@ -251,7 +266,16 @@ export default async function DashboardPage() {
             )}
           </p>
         </div>
-        <div className="col-span-2 rounded-2xl border border-border bg-card p-4 shadow-sm sm:col-span-1">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Church className="size-4 text-gold" aria-hidden />
+            Church plots
+          </div>
+          <p className="mt-1.5 font-semibold text-foreground">
+            {churchPlotsDone > 0 ? `${churchPlotsDone} funded` : 'None yet'}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ScrollText className="size-4 text-gold" aria-hidden />
             Covenant

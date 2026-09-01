@@ -47,6 +47,7 @@ import {
   type MemberStatus,
   type PaymentStatus,
   PRICE_PER_PLOT_KOBO,
+  PAYMENT_PER_PERSONAL_PLOT_KOBO,
   TOTAL_PROJECT_PLOTS,
   TOTAL_PROJECT_TARGET_KOBO,
 } from '@/lib/dawrash-data'
@@ -61,6 +62,7 @@ import {
   updateCertificateDeliveryAction,
   resolveAuditFlagAction,
   updateMemberAdminRoleAction,
+  capExistingPlotsToMaxAction,
 } from '@/app/admin/actions'
 import {
   Users,
@@ -140,6 +142,24 @@ export function OverviewSection({
   onNavigate: (section: 'members' | 'transactions' | 'certificates' | 'audit') => void
   onOpenRecordPayment: (memberId?: string) => void
 }) {
+  const [capDialogOpen, setCapDialogOpen] = useState(false)
+  const [capping, setCapping] = useState(false)
+
+  async function handleCapPlots() {
+    setCapping(true)
+    const res = await capExistingPlotsToMaxAction()
+    setCapping(false)
+    setCapDialogOpen(false)
+    if (res.success) {
+      if (res.affectedRows === 0) {
+        toast.success('No members had targets above 5. Nothing to update.')
+      } else {
+        toast.success(`Done. ${res.affectedRows} member${res.affectedRows !== 1 ? 's' : ''} capped to 5 plots.`)
+      }
+    } else {
+      toast.error(res.error || 'Failed to cap plots.')
+    }
+  }
   const totalMembers = members.length
   const totalTargetKobo = members.reduce((sum, m) => sum + targetKobo(m), 0)
 
@@ -150,8 +170,12 @@ export function OverviewSection({
   const totalPendingKobo = pendingTx.reduce((sum, t) => sum + t.amountKobo, 0)
 
   const overallProgress = percent(totalCollectedKobo, totalTargetKobo)
-  const totalPlotsReserved = members.reduce((s, m) => s + m.plots, 0)
-  const totalPlotsPaid = Math.floor(totalCollectedKobo / PRICE_PER_PLOT_KOBO)
+  const totalPersonalPlotsReserved = members.reduce((s, m) => s + m.plots, 0)
+  // Each personal plot is paired with one church plot, both funded by the member
+  const totalChurchPlotsReserved = totalPersonalPlotsReserved
+  const totalPlotsReserved = totalPersonalPlotsReserved // displayed as personal plots
+  const totalPlotsPaid = Math.floor(totalCollectedKobo / PAYMENT_PER_PERSONAL_PLOT_KOBO)
+  const totalChurchPlotsPaid = totalPlotsPaid // 1:1 ratio
 
   const byStatus: Record<MemberStatus, number> = {
     active: 0,
@@ -234,7 +258,47 @@ export function OverviewSection({
             <Download className="mr-1.5 size-3.5" />
             Export CSV
           </Button>
+
+          {/* One-time maintenance: cap any targets above 5 down to 5 */}
+          {members.some((m) => m.plots > 5) && (
+            <Button
+              variant="outline"
+              onClick={() => setCapDialogOpen(true)}
+              className="rounded-full border-destructive/40 text-destructive hover:bg-destructive/5"
+            >
+              <AlertTriangle className="mr-1.5 size-3.5" />
+              Cap Plots to 5
+            </Button>
+          )}
         </div>
+
+      {/* Cap-plots confirmation dialog */}
+      <Dialog open={capDialogOpen} onOpenChange={setCapDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-lg font-bold">Cap All Targets to 5 Plots</DialogTitle>
+            <DialogDescription>
+              This will set every member whose target exceeds 5 plots down to exactly 5.
+              Members with 5 or fewer plots are untouched. This action cannot be undone automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {members.filter((m) => m.plots > 5).length} member(s) will be affected.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-full" onClick={() => setCapDialogOpen(false)} disabled={capping}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCapPlots}
+              disabled={capping}
+              className="rounded-full bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50"
+            >
+              {capping ? 'Updating…' : 'Confirm & Cap'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
 
       {/* KPI Grid */}
@@ -267,20 +331,41 @@ export function OverviewSection({
               <LandPlot className="size-5" />
             </span>
             <Badge variant="outline" className="border-gold/30 bg-gold/5 text-gold text-[11px]">
-              {percent(totalPlotsReserved, TOTAL_PROJECT_PLOTS)}% subscribed
+              {percent(totalPersonalPlotsReserved, TOTAL_PROJECT_PLOTS)}% subscribed
             </Badge>
           </div>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Plots Allocation
+            Personal Plots Reserved
           </p>
           <p className="mt-1 font-serif text-2xl font-bold text-foreground">
-            {totalPlotsReserved.toLocaleString()}{' '}
+            {totalPersonalPlotsReserved.toLocaleString()}{' '}
             <span className="text-sm font-normal text-muted-foreground">
               / {TOTAL_PROJECT_PLOTS.toLocaleString()} Master Plan Plots
             </span>
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {totalPlotsPaid} fully paid · {(TOTAL_PROJECT_PLOTS - totalPlotsReserved).toLocaleString()} unallocated plots
+            {totalPlotsPaid} fully paid · {(TOTAL_PROJECT_PLOTS - totalPersonalPlotsReserved).toLocaleString()} unallocated
+          </p>
+        </div>
+
+        {/* Church Building Plots */}
+        <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-gold/10 text-gold">
+              <Building2 className="size-5" />
+            </span>
+            <Badge variant="outline" className="border-gold/30 bg-gold/5 text-gold text-[11px]">
+              {totalChurchPlotsPaid} fully funded
+            </Badge>
+          </div>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Church Building Plots
+          </p>
+          <p className="mt-1 font-serif text-2xl font-bold text-foreground">
+            {totalChurchPlotsReserved.toLocaleString()}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            1 church plot paired per personal plot, funded by members
           </p>
         </div>
 
@@ -398,7 +483,7 @@ export function OverviewSection({
 
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
             <div>
-              <span className="font-semibold text-foreground">{totalPlotsReserved}</span> Plots under covenant
+              <span className="font-semibold text-foreground">{totalPersonalPlotsReserved}</span> Plots under covenant
             </div>
             <div>
               <span className="font-semibold text-success">{formatNaira(totalCollectedKobo)}</span> Confirmed bank inflows
@@ -438,7 +523,7 @@ export function OverviewSection({
             </div>
             <div>
               <p className="text-secondary-foreground/60">Target Plots</p>
-              <p className="mt-0.5 font-bold text-white">{totalPlotsReserved}</p>
+              <p className="mt-0.5 font-bold text-white">{totalPersonalPlotsReserved}</p>
             </div>
           </div>
         </div>

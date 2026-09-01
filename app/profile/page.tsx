@@ -1,12 +1,13 @@
 import Link from 'next/link'
 import { MemberLayout } from '@/components/dawrash/member-layout'
 import { UpdateTargetDialog } from '@/components/dawrash/update-target-dialog'
+import { TargetIncreaseRequestDialog } from '@/components/dawrash/target-increase-request-dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { getCurrentMemberServer } from '@/lib/member-data'
-import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira, PRICE_PER_PLOT_KOBO, COVENANT_TEXT } from '@/lib/dawrash-data'
+import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira, PRICE_PER_PLOT_KOBO, PAYMENT_PER_PERSONAL_PLOT_KOBO, COVENANT_TEXT, MAX_PLOTS, plotsFullyPaid, churchPlotsContributed } from '@/lib/dawrash-data'
 import { CircleCheck, LandPlot, LogOut, Mail, CalendarDays, TrendingUp, ScrollText, CheckCircle2 } from 'lucide-react'
 
 function formatDate(iso: string): string {
@@ -29,8 +30,11 @@ export default async function ProfilePage() {
   const saved = savedKobo(member)
   const target = targetKobo(member)
   const percent = progressPercent(member)
-  const minPlots = Math.max(1, Math.floor(saved / PRICE_PER_PLOT_KOBO))
-  const canUpdateTarget = member.status !== 'completed' && member.plots > 0
+  // Floor is based on paired payment: can't go below what's already fully paid
+  const minPlots = Math.max(1, plotsFullyPaid(member))
+  const churchDone = churchPlotsContributed(member)
+  const canUpdateTarget = member.status !== 'completed' && member.plots > 0 && member.plots < MAX_PLOTS
+  const canRequestIncrease = member.status === 'completed' && member.plots >= MAX_PLOTS
 
   return (
     <MemberLayout>
@@ -117,6 +121,9 @@ export default async function ProfilePage() {
           {canUpdateTarget && (
             <UpdateTargetDialog currentPlots={member.plots} minPlots={minPlots} />
           )}
+          {canRequestIncrease && (
+            <TargetIncreaseRequestDialog currentPlots={member.plots} />
+          )}
         </div>
 
         <div className="mt-4 grid grid-cols-3 gap-3">
@@ -140,6 +147,19 @@ export default async function ProfilePage() {
             </p>
             <p className="mt-1 font-serif text-sm font-bold text-gold">{percent}%</p>
           </div>
+        </div>
+
+        {/* Church contribution note */}
+        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">{plotLabel(member.plots)} personal</span>
+          <span>·</span>
+          <span>{plotLabel(member.plots)} church (funded by you)</span>
+          {churchDone > 0 && (
+            <>
+              <span>·</span>
+              <span className="text-success font-semibold">{churchDone} church plot{churchDone > 1 ? 's' : ''} fully funded</span>
+            </>
+          )}
         </div>
 
         <div className="mt-4 h-4 overflow-hidden rounded-full bg-muted">

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   const event = payload.event
   const data = payload.data
 
-  // Only process successful charge events — ignore transfers, subscriptions, etc.
+  // Only process successful charge events. Ignore transfers, subscriptions, etc.
   if (event !== 'charge.success') {
     console.log(`[paystack/webhook] ignored event=${event}`)
     return new Response('ignored', { status: 200 })
@@ -105,9 +105,10 @@ export async function POST(req: Request) {
           if (txError) {
             console.warn('[paystack/webhook] could not fetch transactions for completion check:', txError.message)
           } else {
-            const PRICE_PER_PLOT_KOBO = 2_000_000 * 100
+            // Each personal plot costs ₦2M (personal ₦1M + church ₦1M)
+            const PAYMENT_PER_PERSONAL_PLOT_KOBO = 2_000_000 * 100
             const totalConfirmedKobo = (txRows ?? []).reduce((sum, t) => sum + Number(t.amount_kobo ?? 0), 0)
-            const targetKobo = (profile.plots ?? 0) * PRICE_PER_PLOT_KOBO
+            const targetKobo = (profile.plots ?? 0) * PAYMENT_PER_PERSONAL_PLOT_KOBO
 
             if (targetKobo > 0 && totalConfirmedKobo >= targetKobo) {
               const { error: completeError } = await supabase
@@ -124,7 +125,7 @@ export async function POST(req: Request) {
           }
         }
       } catch (completionErr) {
-        // Non-fatal — don't fail the webhook response over a completion check
+        // Non-fatal. Don't fail the webhook response over a completion check.
         console.error('[paystack/webhook] completion check error', completionErr)
       }
     }

@@ -656,3 +656,62 @@ export async function updateMemberPlotsAction(
     return { success: false, error: err.message || 'Failed to update plot count' }
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Server Action: Cap Plots to MAX_PLOTS for All Existing Members    */
+/*                                                                    */
+/*  Runs a single bulk UPDATE against the profiles table:             */
+/*    UPDATE profiles SET plots = 5 WHERE plots > 5                   */
+/*                                                                    */
+/*  Members with plots 0–5 are untouched.                             */
+/*  Safe to run multiple times (idempotent).                          */
+/*                                                                    */
+/*  Alternatively, run this SQL directly in your Supabase SQL editor: */
+/*    UPDATE public.profiles SET plots = 5 WHERE plots > 5;           */
+/* ------------------------------------------------------------------ */
+
+export async function capExistingPlotsToMaxAction(): Promise<{
+  success: boolean
+  affectedRows?: number
+  error?: string
+}> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
+  try {
+    const supabase = createSupabaseAdminClient()
+
+    // Fetch IDs of members that exceed the cap so we can count affected rows
+    const { data: overCap, error: fetchError } = await supabase
+      .from('profiles')
+      .select('id')
+      .gt('plots', 5)
+
+    if (fetchError) {
+      return { success: false, error: fetchError.message }
+    }
+
+    const affectedRows = overCap?.length ?? 0
+
+    if (affectedRows === 0) {
+      return { success: true, affectedRows: 0 }
+    }
+
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ plots: 5, updated_at: new Date().toISOString() })
+      .gt('plots', 5)
+
+    if (updateError) {
+      console.error('[admin/actions] capExistingPlotsToMaxAction error:', updateError.message)
+      return { success: false, error: updateError.message }
+    }
+
+    revalidatePath('/admin')
+    return { success: true, affectedRows }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to cap existing plots' }
+  }
+}

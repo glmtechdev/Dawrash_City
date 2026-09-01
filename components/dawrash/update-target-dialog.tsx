@@ -2,11 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LandPlot, Minus, Plus, Target } from 'lucide-react'
+import { LandPlot, Church, Minus, Plus, Target } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { updateTarget } from '@/app/actions'
-import { PRICE_PER_PLOT_KOBO, formatNaira, plotLabel } from '@/lib/dawrash-data'
+import {
+  PRICE_PER_PLOT_KOBO,
+  PAYMENT_PER_PERSONAL_PLOT_KOBO,
+  MAX_PLOTS,
+  formatNaira,
+  plotLabel,
+} from '@/lib/dawrash-data'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +29,7 @@ import { Spinner } from '@/components/ui/spinner'
 
 interface UpdateTargetDialogProps {
   currentPlots: number
-  /** Minimum selectable plots - cannot go below confirmed-paid plots */
+  /** Minimum selectable plots - cannot go below confirmed-paid personal plots */
   minPlots?: number
 }
 
@@ -37,10 +43,12 @@ export function UpdateTargetDialog({
   const [saving, setSaving] = useState(false)
 
   const hasChanged = plots !== currentPlots
-  const totalKobo = plots * PRICE_PER_PLOT_KOBO
+  const totalKobo = plots * PAYMENT_PER_PERSONAL_PLOT_KOBO
+  const personalKobo = plots * PRICE_PER_PLOT_KOBO
+  const atCap = plots >= MAX_PLOTS
 
   function increment() {
-    setPlots((p) => p + 1)
+    setPlots((p) => Math.min(MAX_PLOTS, p + 1))
   }
 
   function decrement() {
@@ -48,19 +56,14 @@ export function UpdateTargetDialog({
   }
 
   function handleOpenChange(next: boolean) {
-    if (!next) {
-      // Reset to current value when dismissed
-      setPlots(currentPlots)
-    }
+    if (!next) setPlots(currentPlots)
     setOpen(next)
   }
 
   async function handleSave() {
     if (!hasChanged || saving) return
     setSaving(true)
-
     const res = await updateTarget(plots)
-
     if (res.success) {
       toast.success('Target updated successfully.')
       setOpen(false)
@@ -90,7 +93,8 @@ export function UpdateTargetDialog({
         <DialogHeader>
           <DialogTitle className="font-serif text-lg font-bold">Update Your Land Target</DialogTitle>
           <DialogDescription>
-            Adjust the number of plots you want to own in Dawrash City. Your target amount will update accordingly.
+            Adjust your personal plot count. Each personal plot is paired with one church-building
+            plot, both funded by you at ₦1,000,000 each. Maximum {MAX_PLOTS} personal plots.
           </DialogDescription>
         </DialogHeader>
 
@@ -102,8 +106,10 @@ export function UpdateTargetDialog({
                 <LandPlot className="size-5" aria-hidden />
               </span>
               <div>
-                <p className="font-serif text-lg font-bold text-foreground">{plotLabel(plots)}</p>
-                <p className="text-sm text-muted-foreground">{formatNaira(totalKobo)}</p>
+                <p className="font-serif text-lg font-bold text-foreground">
+                  {plotLabel(plots)} personal
+                </p>
+                <p className="text-sm text-muted-foreground">Total: {formatNaira(totalKobo)}</p>
               </div>
             </div>
 
@@ -130,31 +136,53 @@ export function UpdateTargetDialog({
               <button
                 type="button"
                 onClick={increment}
+                disabled={atCap}
                 aria-label="Increase plots"
-                className="flex size-9 items-center justify-center rounded-full border border-gold text-gold transition-colors hover:bg-gold/10"
+                className={cn(
+                  'flex size-9 items-center justify-center rounded-full border transition-colors',
+                  atCap
+                    ? 'border-border text-muted-foreground opacity-40'
+                    : 'border-gold text-gold hover:bg-gold/10',
+                )}
               >
                 <Plus className="size-4" />
               </button>
             </div>
           </div>
 
+          {/* Paired breakdown */}
+          <div className="mt-3 flex gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1">
+              <LandPlot className="size-3.5 text-gold" />
+              {plotLabel(plots)} yours · {formatNaira(personalKobo)}
+            </span>
+            <span className="flex items-center gap-1">
+              <Church className="size-3.5 text-gold" />
+              {plotLabel(plots)} church · {formatNaira(personalKobo)}
+            </span>
+          </div>
+
           {/* Change indicator */}
           {hasChanged && (
             <p className="mt-3 rounded-xl bg-gold/10 px-3 py-2 text-xs font-medium text-gold">
-              Changing from {plotLabel(currentPlots)} ({formatNaira(currentPlots * PRICE_PER_PLOT_KOBO)}) →{' '}
-              {plotLabel(plots)} ({formatNaira(totalKobo)})
+              {plotLabel(currentPlots)} → {plotLabel(plots)} personal plots
+              · {formatNaira(plots * PAYMENT_PER_PERSONAL_PLOT_KOBO)} total
+            </p>
+          )}
+
+          {atCap && (
+            <p className="mt-3 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Maximum of {MAX_PLOTS} personal plots reached. Complete your payments then apply for a target increase.
             </p>
           )}
         </div>
 
         <p className="text-xs text-muted-foreground">
-          You cannot set a target below the plots you have already paid for.
+          You cannot set a target below the personal plots you have already paid for.
         </p>
 
         <DialogFooter>
-          <DialogClose
-            render={<Button variant="outline" className="rounded-full" />}
-          >
+          <DialogClose render={<Button variant="outline" className="rounded-full" />}>
             Cancel
           </DialogClose>
           <Button

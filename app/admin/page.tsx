@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
  * live data for all 4 tables (profiles, transactions, audit_flags, certificates).
  */
 export default async function AdminPage() {
-  // ── Dev bypass — no Supabase network calls needed ────────────────
+  // Dev bypass - no Supabase network calls needed
   if (
     process.env.NODE_ENV === 'development' &&
     process.env.DEV_FORCE_EMAIL?.trim()

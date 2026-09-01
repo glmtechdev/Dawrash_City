@@ -1,9 +1,24 @@
 // All monetary values are stored as kobo integers (1 naira = 100 kobo)
 // and formatted to naira only at display time.
 
-export const PRICE_PER_PLOT_KOBO = 2_000_000 * 100 // 2,000,000 naira per plot
+/** Cost of one plot (personal or church) = ₦1,000,000 */
+export const PRICE_PER_PLOT_KOBO = 1_000_000 * 100
+
+/**
+ * Every personal plot a member buys is paired with one church-building plot,
+ * both funded by the member.  The member's actual payment per personal plot
+ * is therefore PRICE_PER_PLOT_KOBO × CHURCH_PLOT_MULTIPLIER = ₦2,000,000.
+ */
+export const CHURCH_PLOT_MULTIPLIER = 2
+
+/** Payment amount per personal plot (= member plot + church plot) in kobo */
+export const PAYMENT_PER_PERSONAL_PLOT_KOBO = PRICE_PER_PLOT_KOBO * CHURCH_PLOT_MULTIPLIER
+
 export const TOTAL_PROJECT_PLOTS = 2_500 // Total Dawrash City master survey plots
-export const TOTAL_PROJECT_TARGET_KOBO = TOTAL_PROJECT_PLOTS * PRICE_PER_PLOT_KOBO // 5,000,000,000 naira
+export const TOTAL_PROJECT_TARGET_KOBO = TOTAL_PROJECT_PLOTS * PRICE_PER_PLOT_KOBO
+
+/** Maximum personal plots a member may self-select. Increase beyond this requires admin approval. */
+export const MAX_PLOTS = 5
 
 export function formatNaira(kobo: number): string {
   const naira = Math.round(kobo / 100)
@@ -34,6 +49,7 @@ export type Member = {
   name: string
   email: string
   initials: string
+  /** Personal plots target (1–MAX_PLOTS). Each personal plot is paired with one church plot. */
   plots: number
   memberSince: string
   covenantSignedAt: string | null
@@ -47,32 +63,37 @@ export const PLOT_OPTIONS = [
   {
     count: 1,
     tagline: 'Your foundation',
-    description: 'A single plot to plant your roots in the community.',
+    description: 'One personal plot + one church plot. Your entry into the Dawrash community.',
   },
   {
     count: 2,
     tagline: 'Room to grow',
-    description: 'Space for a family home and a garden of your own.',
+    description: 'Two personal plots + two church plots. Space for family and legacy.',
   },
   {
     count: 3,
     tagline: 'Legacy investment',
-    description: 'Build for the generations who will call Dawrash home.',
+    description: 'Three personal plots + three church plots. Building for generations.',
   },
   {
     count: 4,
     tagline: 'Expand your vision',
-    description: 'A larger stake in the community you are helping to build.',
+    description: 'Four personal plots + four church plots. A larger stake in the community.',
+  },
+  {
+    count: 5,
+    tagline: 'Maximum allocation',
+    description: 'Five personal plots + five church plots. The full self-service limit.',
   },
 ] as const
 
-export const COVENANT_TEXT = `DAWRASH CITY LAND SAVINGS COVENANT - Version 1.0
+export const COVENANT_TEXT = `DAWRASH CITY LAND SAVINGS COVENANT - Version 2.0
 
 Nature of This Agreement
 This is a voluntary land savings commitment made in good faith as a member of Gospel Labour Ministry for the Dawrash City vision. This agreement is legally binding upon digital acceptance and enforceable under applicable Nigerian law.
 
 Payment Commitment
-I agree to save toward the purchase of my selected plot(s) of land within Dawrash City at \u20A62,000,000 per plot. There is no fixed payment deadline, and I may contribute at my own pace.
+I agree to save toward the purchase of my selected plot(s) of land within Dawrash City at \u20A61,000,000 per plot. For every personal plot I purchase, I also fund one matching plot for the Gospel Labour Ministry church building project. My total payment commitment is therefore \u20A62,000,000 per personal plot selected. There is no fixed payment deadline, and I may contribute at my own pace.
 
 Non-Refundable Policy
 All funds contributed are strictly non-refundable under any circumstances once confirmed. This includes personal financial hardship, change of mind, relocation, or departure from the faith community.
@@ -81,7 +102,7 @@ Transfer of Slot
 If I am unable to continue, my savings and reservation may be transferred to another verified registered member, subject to administrative approval. No cash payout will be made.
 
 Land Allocation
-Upon full payment completion, a land certificate will be processed and issued in my name. Specific plot numbers will be assigned in a future allocation process.
+Upon full payment completion, a land certificate will be processed and issued in my name for my personal plot(s). The matching church plots will be allocated to the Gospel Labour Ministry church building project. Specific plot numbers will be assigned in a future allocation process.
 
 Bank Accounts and Gateway Fees
 All payment processing fees are borne by me and are separate from my land target amount.
@@ -89,7 +110,52 @@ All payment processing fees are borne by me and are separate from my land target
 Acknowledgement
 I confirm I am a registered member, I am of legal age and sound mind, and I accept this covenant freely and without coercion.`
 
-// The signed-in demo member.
+// ---------------------------------------------------------------------------
+// Derived computation helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * The total amount a member must pay to fully complete their target.
+ * = personal plots × ₦1M (personal) + personal plots × ₦1M (church) = plots × ₦2M
+ */
+export function targetKobo(member: Pick<Member, 'plots'>): number {
+  return member.plots * PAYMENT_PER_PERSONAL_PLOT_KOBO
+}
+
+/** Sum of all confirmed transaction amounts */
+export function savedKobo(member: Pick<Member, 'transactions'>): number {
+  return member.transactions
+    .filter((t) => t.status === 'confirmed')
+    .reduce((sum, t) => sum + t.amountKobo, 0)
+}
+
+export function progressPercent(member: Member): number {
+  const target = targetKobo(member)
+  if (target === 0) return 0
+  return Math.min(100, Math.round((savedKobo(member) / target) * 100))
+}
+
+/**
+ * How many personal plots the member has fully paid for.
+ * A personal plot is fully paid when its paired payment (2 × PRICE_PER_PLOT_KOBO) is confirmed.
+ */
+export function plotsFullyPaid(member: Pick<Member, 'transactions'>): number {
+  return Math.floor(savedKobo(member) / PAYMENT_PER_PERSONAL_PLOT_KOBO)
+}
+
+/**
+ * Church plots funded by a member = their personal plots fully paid.
+ * (1 church plot unlocked for every personal plot fully paid)
+ */
+export function churchPlotsContributed(member: Pick<Member, 'transactions'>): number {
+  return plotsFullyPaid(member)
+}
+
+// ---------------------------------------------------------------------------
+// Demo data - reflects the new N2M/personal-plot payment model
+// ---------------------------------------------------------------------------
+
+// The signed-in demo member: 3 personal plots target, ~₦4M saved of ₦6M total
 export const currentMember: Member = {
   id: 'mbr_001',
   name: 'Daniel Okafor',
@@ -113,23 +179,7 @@ export const currentMember: Member = {
   ],
 }
 
-export function targetKobo(member: Pick<Member, 'plots'>): number {
-  return member.plots * PRICE_PER_PLOT_KOBO
-}
-
-export function savedKobo(member: Pick<Member, 'transactions'>): number {
-  return member.transactions
-    .filter((t) => t.status === 'confirmed')
-    .reduce((sum, t) => sum + t.amountKobo, 0)
-}
-
-export function progressPercent(member: Member): number {
-  const target = targetKobo(member)
-  if (target === 0) return 0
-  return Math.min(100, Math.round((savedKobo(member) / target) * 100))
-}
-
-// Admin demo directory.
+// Admin demo directory
 export const members: Member[] = [
   currentMember,
   {
@@ -143,6 +193,7 @@ export const members: Member[] = [
     nuban: '',
     bank: '',
     status: 'completed',
+    // 2 personal plots × ₦2M = ₦4M total paid
     transactions: [
       { id: 'g1', date: '2026-08-01', amountKobo: 2_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8700' },
       { id: 'g2', date: '2026-06-01', amountKobo: 2_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8100' },
@@ -205,6 +256,7 @@ export const members: Member[] = [
     nuban: '',
     bank: '',
     status: 'completed',
+    // 1 personal plot × ₦2M = ₦2M total paid
     transactions: [
       { id: 'd1', date: '2026-07-25', amountKobo: 2_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8680' },
     ],
