@@ -19,6 +19,17 @@ export const metadata: Metadata = {
   title: 'Dawrash City | Own Your Land in Dawrash',
   description:
     'An exclusive land ownership programme for registered members of Gospel Labour Ministry building the Dawrash City vision.',
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48', type: 'image/x-icon' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+  },
+  manifest: '/manifest.webmanifest',
 }
 
 export const viewport: Viewport = {
