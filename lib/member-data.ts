@@ -85,7 +85,7 @@ export async function getCurrentMemberServer(): Promise<Member> {
       nuban: profile.nuban ?? null,
       bank: profile.bank ?? null,
       status: profile.status || (profile.covenant_signed_at ? 'active' : 'pending_covenant'),
-      transactions: transactions.length > 0 ? transactions : currentMember.transactions,
+      transactions: transactions,
     }
   } catch (err) {
     console.error('[member-data] Error fetching member server data:', err)
