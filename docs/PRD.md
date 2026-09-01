@@ -94,7 +94,7 @@ Logs in with their GLM credentials (email + password)
 Visits Profile page → clicks "Open Dawrash City"
         ↓
 GLM app reads active Supabase session token and redirects to:
-https://dawrashcity.vercel.app/auth/glm?token=<jwt>
+https://dawrashcity.com/auth/glm?token=<jwt>
         ↓
 /auth/glm route on Dawrash:
   1. Validates GLM JWT via GLM Supabase project (getUser)

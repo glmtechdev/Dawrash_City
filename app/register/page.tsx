@@ -40,7 +40,7 @@ export default function RegisterPage() {
         <div className="mt-6 rounded-2xl border border-gold/20 bg-gold/5 p-4 text-center text-sm text-muted-foreground">
           Already a GLM member?{' '}
           <a
-            href="https://members-dbase.vercel.app"
+            href="https://members.glmhq.org"
             target="_blank"
             rel="noopener noreferrer"
             className="font-semibold text-[#e53e3e] hover:underline"
