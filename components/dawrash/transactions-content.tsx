@@ -37,6 +37,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Construction,
 } from 'lucide-react'
 
 type Filter = 'all' | 'confirmed' | 'pending'
@@ -187,6 +188,8 @@ export function TransactionsContent({ member }: { member: Member }) {
     }
   }
 
+  const paymentsEnabled = process.env.NEXT_PUBLIC_PAYMENTS_ENABLED === 'true'
+
   return (
     <div className="space-y-8 pb-12">
       {/* ------------------------------------------------------------- */}
@@ -254,8 +257,9 @@ export function TransactionsContent({ member }: { member: Member }) {
         </div>
       )}
       {/* ------------------------------------------------------------- */}
-      {/* 1. MAKE A PAYMENT CARD (Redesigned)                           */}
+      {/* 1. MAKE A PAYMENT CARD                                        */}
       {/* ------------------------------------------------------------- */}
+      {paymentsEnabled ? (
       <div className="rounded-3xl border border-gold/30 bg-card p-5 sm:p-7 shadow-sm">
         {/* Header */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
@@ -404,9 +408,25 @@ export function TransactionsContent({ member }: { member: Member }) {
           </Button>
         </div>
       </div>
+      ) : (
+        /* Payments disabled notice */
+        <div className="rounded-3xl border border-border bg-card p-7 shadow-sm">
+          <div className="flex items-start gap-4">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+              <Construction className="size-6" />
+            </span>
+            <div>
+              <h2 className="font-serif text-lg font-bold text-foreground">Payments not open yet</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Online payments are not available at this stage. You will be notified when the payment window opens. Check back soon.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ------------------------------------------------------------- */}
-      {/* 2. PAYMENT HISTORY & SUMMARY METRICS (Redesigned)              */}
+      {/* 2. PAYMENT HISTORY & SUMMARY METRICS                          */}
       {/* ------------------------------------------------------------- */}
       <div className="space-y-4">
         <div>
