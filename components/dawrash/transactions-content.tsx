@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { PaymentBadge } from '@/components/dawrash/status-badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Empty,
   EmptyContent,
@@ -260,152 +259,161 @@ export function TransactionsContent({ member }: { member: Member }) {
       {/* 1. MAKE A PAYMENT CARD                                        */}
       {/* ------------------------------------------------------------- */}
       {paymentsEnabled ? (
-      <div className="rounded-3xl border border-gold/30 bg-card p-5 sm:p-7 shadow-sm">
-        {/* Header */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-5">
-          <div className="flex items-center gap-3">
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gold/15 text-gold">
-              <CreditCard className="size-5" />
+      <div className="overflow-hidden rounded-3xl border border-gold/20 bg-card shadow-sm">
+
+        {/* Top strip: merchant identity bar (Paystack-style) */}
+        <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gold/15 text-gold">
+              <CreditCard className="size-4" />
             </div>
             <div>
-              <h2 className="font-serif text-lg font-bold text-foreground sm:text-xl">
-                Make a Plot Contribution
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Instant card, USSD, or transfer payment processed securely via Paystack.
-              </p>
+              <p className="text-xs font-bold text-foreground">Dawrash City Land Savings</p>
+              <p className="text-[11px] text-muted-foreground">dawrashcity.com</p>
             </div>
           </div>
-
-          <Badge variant="outline" className="w-fit border-gold/40 bg-gold/5 text-gold text-xs font-semibold px-3 py-1">
-            <ShieldCheck className="mr-1.5 size-3.5" />
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+            <ShieldCheck className="size-3.5 text-gold" />
             Secured by Paystack
-          </Badge>
+          </div>
         </div>
 
-        {/* Form Body */}
-        <div className="mt-5 space-y-5">
-          {/* Amount Input */}
-          <div>
-            <label className="text-xs font-semibold text-foreground">
-              Contribution Amount (NGN)
-            </label>
-            <div className="relative mt-1.5">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 font-serif text-base font-bold text-muted-foreground">
-                ₦
-              </span>
-              <Input
-                type="number"
-                min={500}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Enter amount (e.g. 500,000)"
-                className="h-12 rounded-2xl pl-9 text-base font-semibold"
-              />
-            </div>
-          </div>
+        {/* Center: amount terminal */}
+        <div className="px-5 pb-1 pt-6 sm:px-8">
 
-          {/* Fee & Breakdown Card */}
-          {numericAmount > 0 && (
-            <div className="rounded-2xl border border-border bg-muted/40 p-4 text-xs">
-              <div className="flex justify-between py-1">
-                <span className="text-muted-foreground">Plot Savings Credit</span>
-                <span className="font-semibold text-foreground">{formatNaira(intendedAmountKobo)}</span>
-              </div>
-              <div className="flex justify-between py-1 border-t border-border/50">
-                <span className="text-muted-foreground">Processing Fee (Paystack)</span>
-                <span className="font-medium text-muted-foreground">{formatNaira(feeKobo)}</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-t border-border font-semibold text-sm">
-                <span className="text-foreground">Total to be Charged</span>
-                <span className="text-gold font-serif text-base">{formatNaira(totalChargeKobo)}</span>
-              </div>
-            </div>
+          {/* Remaining balance anchor */}
+          {remainingTargetKobo > 0 ? (
+            <p className="mb-3 text-center text-xs font-medium text-muted-foreground">
+              <span className="font-bold text-foreground">{formatNaira(remainingTargetKobo)}</span> remaining to complete your target
+            </p>
+          ) : (
+            <p className="mb-3 text-center text-xs font-semibold text-success">
+              Target complete. Any contribution goes toward your next plot.
+            </p>
           )}
 
-          {/* Installment Projection Toggle */}
-          <div className="rounded-2xl border border-border/70 bg-card p-3.5">
-            <button
-              type="button"
-              onClick={() => setShowCalculator(!showCalculator)}
-              className="flex w-full items-center justify-between text-xs font-semibold text-foreground hover:text-gold"
-            >
-              <div className="flex items-center gap-2">
-                <Calculator className="size-4 text-gold" />
-                <span>Calculate Installment Breakdown (Optional)</span>
-              </div>
-              {showCalculator ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-            </button>
-
-            {showCalculator && (
-              <div className="mt-3.5 border-t border-border pt-3 space-y-3">
-                <div className="flex items-center gap-3">
-                  <label className="text-xs text-muted-foreground whitespace-nowrap">
-                    Number of Installments:
-                  </label>
-                  <div className="flex gap-1.5">
-                    {[2, 3, 6, 12].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setInstallments(num)}
-                        className={cn(
-                          'size-8 rounded-full text-xs font-bold transition-colors',
-                          installments === num
-                            ? 'bg-gold text-gold-foreground'
-                            : 'bg-muted text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        {num}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {installmentProjection ? (
-                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-3 text-xs sm:grid-cols-4">
-                    <div>
-                      <p className="text-muted-foreground">Per Payment</p>
-                      <p className="font-semibold text-foreground">{formatNaira(installmentProjection.perInstallKobo)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Est. Fee/Pay</p>
-                      <p className="font-semibold text-foreground">{formatNaira(installmentProjection.perFee)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Fees</p>
-                      <p className="font-semibold text-foreground">{formatNaira(installmentProjection.totalFees)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Project</p>
-                      <p className="font-bold text-gold">{formatNaira(installmentProjection.totalCharged)}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Enter an amount above to see installment breakdown.
-                  </p>
-                )}
-              </div>
-            )}
+          {/* Large amount input */}
+          <div className="relative flex items-center justify-center">
+            <span className="pointer-events-none absolute left-4 font-serif text-3xl font-bold text-muted-foreground/60 sm:text-4xl">
+              ₦
+            </span>
+            <input
+              type="number"
+              min={500}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0"
+              aria-label="Contribution amount in naira"
+              className="w-full rounded-2xl border border-border bg-background pl-12 pr-4 py-4 font-serif text-3xl font-bold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-gold/50 sm:text-4xl"
+            />
           </div>
 
-          {/* Action Button */}
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            Card · USSD · Bank Transfer via Paystack
+          </p>
+        </div>
+
+        {/* Fee breakdown — only appears when amount is entered */}
+        {numericAmount > 0 && (
+          <div className="mx-5 mt-4 rounded-2xl border border-border bg-muted/40 px-4 py-3 text-xs sm:mx-8">
+            <div className="flex justify-between py-1">
+              <span className="text-muted-foreground">Plot savings credit</span>
+              <span className="font-semibold text-foreground">{formatNaira(intendedAmountKobo)}</span>
+            </div>
+            <div className="flex justify-between border-t border-border/50 py-1">
+              <span className="text-muted-foreground">Paystack processing fee</span>
+              <span className="text-muted-foreground">{formatNaira(feeKobo)}</span>
+            </div>
+            <div className="flex justify-between border-t border-border py-1.5 text-sm font-bold">
+              <span className="text-foreground">Total charged to you</span>
+              <span className="font-serif text-base text-gold">{formatNaira(totalChargeKobo)}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Installment calculator */}
+        <div className="mx-5 mt-3 rounded-2xl border border-border/70 bg-card p-3.5 sm:mx-8">
+          <button
+            type="button"
+            onClick={() => setShowCalculator(!showCalculator)}
+            className="flex w-full items-center justify-between text-xs font-semibold text-foreground hover:text-gold"
+          >
+            <div className="flex items-center gap-2">
+              <Calculator className="size-4 text-gold" />
+              <span>Installment breakdown calculator</span>
+            </div>
+            {showCalculator ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          </button>
+
+          {showCalculator && (
+            <div className="mt-3.5 space-y-3 border-t border-border pt-3">
+              <div className="flex items-center gap-3">
+                <span className="whitespace-nowrap text-xs text-muted-foreground">Installments:</span>
+                <div className="flex gap-1.5">
+                  {[2, 3, 6, 12].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setInstallments(num)}
+                      className={cn(
+                        'size-8 rounded-full text-xs font-bold transition-colors',
+                        installments === num
+                          ? 'bg-gold text-gold-foreground'
+                          : 'bg-muted text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {installmentProjection ? (
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/50 p-3 text-xs sm:grid-cols-4">
+                  <div>
+                    <p className="text-muted-foreground">Per payment</p>
+                    <p className="font-semibold text-foreground">{formatNaira(installmentProjection.perInstallKobo)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Fee / payment</p>
+                    <p className="font-semibold text-foreground">{formatNaira(installmentProjection.perFee)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total fees</p>
+                    <p className="font-semibold text-foreground">{formatNaira(installmentProjection.totalFees)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total charged</p>
+                    <p className="font-bold text-gold">{formatNaira(installmentProjection.totalCharged)}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Enter an amount above to see the breakdown.</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* CTA button — navy background, gold text, high contrast */}
+        <div className="px-5 pb-6 pt-4 sm:px-8">
           <Button
             type="button"
             disabled={loadingPay || numericAmount <= 0}
             onClick={handlePaystackCheckout}
-            className="h-12 w-full rounded-2xl bg-gold text-base font-bold text-gold-foreground hover:bg-gold/90 shadow-md transition-transform active:scale-[0.99]"
+            className="h-13 w-full rounded-2xl bg-navy text-base font-bold text-white hover:bg-navy/90 shadow-md transition-transform active:scale-[0.99] disabled:opacity-40"
           >
             <Lock className="mr-2 size-4" />
             {loadingPay ? (
-              'Processing Paystack Checkout…'
+              'Opening Paystack…'
             ) : numericAmount > 0 ? (
-              `Pay ${formatNaira(totalChargeKobo)} with Paystack`
+              `Pay ${formatNaira(totalChargeKobo)}`
             ) : (
-              'Enter Amount to Pay'
+              'Enter an amount to continue'
             )}
           </Button>
+          <p className="mt-2.5 text-center text-[11px] text-muted-foreground">
+            You will not be charged until you confirm in the Paystack window.
+          </p>
         </div>
       </div>
       ) : (

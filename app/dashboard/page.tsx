@@ -26,46 +26,18 @@ import {
   CalendarDays,
   ScrollText,
   Sparkles,
+  Lock,
 } from 'lucide-react'
 
 const milestones = [25, 50, 75, 100]
 
 function formatDate(iso: string): string {
-  // timeZone: 'UTC' ensures date-only strings (e.g. '2026-08-18') aren't
-  // shifted into a neighbouring day by the server's or user's local timezone.
   return new Date(iso).toLocaleDateString('en-NG', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     timeZone: 'UTC',
   })
-}
-
-function MilestoneLabel({ milestone, percent }: { milestone: number; percent: number }) {
-  const reached = percent >= milestone
-  const isNext = !reached && milestones.find((m) => percent < m) === milestone
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div
-        className={cn(
-          'flex size-9 items-center justify-center rounded-full text-xs font-bold transition-colors',
-          reached
-            ? 'bg-gold text-gold-foreground'
-            : isNext
-              ? 'border-2 border-gold/40 bg-gold/10 text-gold'
-              : 'bg-white/10 text-secondary-foreground/50',
-        )}
-      >
-        {milestone}%
-      </div>
-      <div
-        className={cn(
-          'h-0.5 w-full rounded-full transition-colors',
-          reached ? 'bg-gold' : 'bg-white/15',
-        )}
-      />
-    </div>
-  )
 }
 
 export const dynamic = 'force-dynamic'
@@ -144,62 +116,39 @@ export default async function DashboardPage() {
       {/* ── Savings summary card ── */}
       <section
         aria-label="Land savings summary"
-        className="mt-5 overflow-hidden rounded-3xl bg-secondary p-6 text-secondary-foreground shadow-md sm:p-8"
+        className="mt-5 overflow-hidden rounded-3xl shadow-md"
+        style={{ background: '#1a3050' }}
       >
-        {/* Top row: text + ring */}
-        <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-between">
-          {/* Left: numbers */}
+        {/* Ring + headline */}
+        <div className="flex flex-col items-center gap-5 px-6 pt-7 sm:flex-row sm:items-start sm:justify-between sm:px-8">
+
+          {/* Left: target label + 2 stat boxes */}
           <div className="order-2 w-full text-center sm:order-1 sm:text-left">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gold">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: '#e5b85c' }}>
               Your Land Target
             </p>
-            <p className="mt-2 font-serif text-2xl font-bold leading-tight">
+            <p className="mt-1.5 font-serif text-2xl font-bold text-white leading-tight">
               {plotLabel(member.plots)} personal
             </p>
-            <p className="text-xs text-muted-foreground/80">
-              + {plotLabel(member.plots)} church · {formatNaira(PAYMENT_PER_PERSONAL_PLOT_KOBO * member.plots)} total commitment
+            <p className="text-xs text-white/50">
+              + {plotLabel(member.plots)} church · {formatNaira(PAYMENT_PER_PERSONAL_PLOT_KOBO * member.plots)} total
             </p>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl bg-white/8 p-3.5">
-                <p className="text-[11px] uppercase tracking-wide text-secondary-foreground/60">
-                  Saved
-                </p>
-                <p className="mt-1 font-serif text-lg font-bold text-gold">{formatNaira(saved)}</p>
+            {/* 2 stat boxes — Saved (green) + Remaining (amber) */}
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <div className="rounded-2xl p-3.5" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                <p className="text-[11px] uppercase tracking-wide text-white/50">Saved</p>
+                <p className="mt-1 font-serif text-lg font-bold text-[#4ade80]">{formatNaira(saved)}</p>
               </div>
-              <div className="rounded-2xl bg-white/8 p-3.5">
-                <p className="text-[11px] uppercase tracking-wide text-secondary-foreground/60">
-                  Remaining
+              <div className="rounded-2xl p-3.5" style={{ background: 'rgba(255,255,255,0.07)' }}>
+                <p className="text-[11px] uppercase tracking-wide text-white/50">Remaining</p>
+                <p className={cn(
+                  'mt-1 font-serif text-lg font-bold',
+                  remaining === 0 ? 'text-[#4ade80]' : 'text-[#f59e0b]'
+                )}>
+                  {remaining === 0 ? 'Complete' : formatNaira(remaining)}
                 </p>
-                <p className="mt-1 font-serif text-lg font-bold">{formatNaira(remaining)}</p>
               </div>
-              <div className="col-span-2 rounded-2xl bg-white/8 p-3.5 sm:col-span-1">
-                <p className="text-[11px] uppercase tracking-wide text-secondary-foreground/60">
-                  Target
-                </p>
-                <p className="mt-1 font-serif text-lg font-bold">{formatNaira(target)}</p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-sm text-secondary-foreground/70">
-              <span className="flex items-center gap-1.5">
-                <LandPlot className="size-3.5 text-gold" aria-hidden />
-                {plotsDone > 0
-                  ? `${plotsDone} personal plot${plotsDone > 1 ? 's' : ''} fully paid`
-                  : 'No plots fully paid yet'}
-              </span>
-              {churchPlotsDone > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <Church className="size-3.5 text-gold" aria-hidden />
-                  {churchPlotsDone} church plot{churchPlotsDone > 1 ? 's' : ''} funded
-                </span>
-              )}
-              {plotsRemaining > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <TrendingUp className="size-3.5 text-gold" aria-hidden />
-                  {plotsRemaining} personal plot{plotsRemaining > 1 ? 's' : ''} remaining
-                </span>
-              )}
             </div>
           </div>
 
@@ -207,39 +156,90 @@ export default async function DashboardPage() {
           <div className="order-1 shrink-0 sm:order-2">
             <ProgressRing
               percent={percent}
-              size={152}
-              stroke={14}
-              trackClassName="text-white/15"
-              barClassName="text-gold"
+              size={148}
+              stroke={13}
+              trackClassName="text-white/10"
+              barClassName={percent >= 100 ? 'text-[#4ade80]' : percent >= 75 ? 'text-[#86efac]' : percent >= 50 ? 'text-[#fbbf24]' : 'text-[#f59e0b]'}
             >
-              <span className="font-serif text-4xl font-bold text-gold">{percent}%</span>
-              <span className="text-[10px] uppercase tracking-widest text-secondary-foreground/55">
+              <span className={cn(
+                'font-serif text-4xl font-bold',
+                percent >= 75 ? 'text-[#4ade80]' : 'text-[#e5b85c]'
+              )}>
+                {percent}%
+              </span>
+              <span className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(229,184,92,0.5)' }}>
                 Saved
               </span>
             </ProgressRing>
           </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="mt-6">
-          <div className="h-4 overflow-hidden rounded-full bg-white/15">
+        {/* Progress bar + ticks + footer line */}
+        <div className="px-6 pb-6 pt-5 sm:px-8">
+          {/* Bar — amber-to-green gradient fill */}
+          <div className="relative h-2.5 overflow-hidden rounded-full" style={{ background: 'rgba(255,255,255,0.10)' }}>
             <div
-              className="h-full rounded-full bg-gold transition-all duration-500"
-              style={{ width: `${percent}%` }}
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${percent}%`,
+                background: percent >= 100
+                  ? '#4ade80'
+                  : `linear-gradient(to right, #f59e0b, ${percent >= 75 ? '#4ade80' : percent >= 50 ? '#86efac' : '#fbbf24'})`,
+              }}
               role="progressbar"
               aria-valuenow={percent}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-label={`${percent}% saved`}
             />
+            {/* Tick notches */}
+            {[25, 50, 75].map((tick) => (
+              <span
+                key={tick}
+                className="absolute top-0 h-full w-px"
+                style={{ left: `${tick}%`, background: 'rgba(255,255,255,0.15)' }}
+                aria-hidden
+              />
+            ))}
           </div>
-        </div>
 
-        {/* Milestones */}
-        <div className="mt-4 grid grid-cols-4 gap-2">
-          {milestones.map((m) => (
-            <MilestoneLabel key={m} milestone={m} percent={percent} />
-          ))}
+          {/* Tick labels */}
+          <div className="relative mt-2 h-4">
+            {milestones.map((m) => (
+              <span
+                key={m}
+                className={cn(
+                  'absolute -translate-x-1/2 text-[10px] font-semibold transition-colors',
+                  percent >= m ? 'text-white/70' : 'text-white/25',
+                )}
+                style={{ left: `${m}%` }}
+              >
+                {m}%
+              </span>
+            ))}
+          </div>
+
+          {/* Footer: plots status line */}
+          <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-white/50">
+            <span className="flex items-center gap-1.5">
+              <LandPlot className="size-3.5" style={{ color: '#e5b85c' }} aria-hidden />
+              {plotsDone > 0
+                ? `${plotsDone} personal plot${plotsDone > 1 ? 's' : ''} fully paid`
+                : 'No plots fully paid yet'}
+            </span>
+            {churchPlotsDone > 0 && (
+              <span className="flex items-center gap-1.5">
+                <Church className="size-3.5" style={{ color: '#e5b85c' }} aria-hidden />
+                {churchPlotsDone} church plot{churchPlotsDone > 1 ? 's' : ''} funded
+              </span>
+            )}
+            {plotsRemaining > 0 && (
+              <span className="flex items-center gap-1.5">
+                <TrendingUp className="size-3.5" style={{ color: '#e5b85c' }} aria-hidden />
+                {plotsRemaining} plot{plotsRemaining > 1 ? 's' : ''} remaining
+              </span>
+            )}
+          </div>
         </div>
       </section>
 
@@ -293,26 +293,45 @@ export default async function DashboardPage() {
       {/* ── Direct Savings Contribution ── */}
       <section
         aria-label="Make a contribution"
-        className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-sm"
+        className="mt-6 overflow-hidden rounded-3xl border border-gold/20 bg-card shadow-sm"
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3.5">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gold/10 text-gold">
-              <Sparkles className="size-6" aria-hidden />
-            </span>
-            <div>
-              <h2 className="font-serif text-lg font-bold text-foreground">Save Toward Your Plots</h2>
-              <p className="text-sm text-muted-foreground">
-                Make flexible contributions at your own pace via instant in-app checkout.
-              </p>
-            </div>
+        {/* Merchant identity bar */}
+        <div className="flex items-center justify-between border-b border-border bg-muted/40 px-5 py-3">
+          <div className="flex items-center gap-2">
+            <Lock className="size-3.5 text-gold" aria-hidden />
+            <p className="text-xs font-bold text-foreground">Dawrash City Land Savings</p>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Secured by Paystack</p>
+        </div>
+
+        {/* Amount due + CTA */}
+        <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            {remaining > 0 ? (
+              <>
+                <p className="text-xs font-medium text-muted-foreground">Remaining to your target</p>
+                <p className="mt-0.5 font-serif text-2xl font-bold text-foreground">
+                  {formatNaira(remaining)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-medium text-success">Target complete</p>
+                <p className="mt-0.5 font-serif text-lg font-bold text-foreground">
+                  All plots fully funded
+                </p>
+              </>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Card · USSD · Bank Transfer
+            </p>
           </div>
           <Link
             href="/transactions"
-            className="inline-flex items-center justify-center rounded-full bg-gold px-6 py-2.5 text-sm font-bold text-gold-foreground transition-all hover:bg-gold/90"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-navy px-6 py-3 text-sm font-bold text-white transition-all hover:bg-navy/90 active:scale-[0.98]"
           >
-            Make Payment
-            <ArrowRight className="ml-1.5 size-4" />
+            <Lock className="size-4" aria-hidden />
+            Make a Contribution
           </Link>
         </div>
       </section>

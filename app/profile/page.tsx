@@ -7,22 +7,13 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { getCurrentMemberServer } from '@/lib/member-data'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import {
-  plotLabel,
-  progressPercent,
-  savedKobo,
-  targetKobo,
-  formatNaira,
-  COVENANT_TEXT,
-  churchPlotsContributed,
-} from '@/lib/dawrash-data'
+import { plotLabel, COVENANT_TEXT } from '@/lib/dawrash-data'
 import {
   CircleCheck,
   LandPlot,
   LogOut,
   Mail,
   CalendarDays,
-  TrendingUp,
   ScrollText,
   CheckCircle2,
   Clock,
@@ -41,11 +32,6 @@ export const dynamic = 'force-dynamic'
 
 export default async function ProfilePage() {
   const member = await getCurrentMemberServer()
-
-  const saved = savedKobo(member)
-  const target = targetKobo(member)
-  const percent = progressPercent(member)
-  const churchDone = churchPlotsContributed(member)
 
   // Check for a pending "Apply for More" application
   let hasPendingApplication = false
@@ -90,7 +76,9 @@ export default async function ProfilePage() {
               <Mail className="size-4 shrink-0" aria-hidden />
               {member.email}
             </p>
-            <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+
+            {/* Badges + plot actions in one row */}
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
               <Badge className="rounded-full border-transparent bg-gold/12 px-3 py-1 text-gold">
                 <LandPlot className="size-3.5" data-icon="inline-start" />
                 {plotLabel(member.plots)}
@@ -110,6 +98,19 @@ export default async function ProfilePage() {
                     ? 'Completed'
                     : 'Pending Covenant'}
               </Badge>
+
+              {/* Apply for More - sits right next to the plot badge */}
+              {canApplyForMore && (
+                <ApplyForMoreDialog memberName={member.name} />
+              )}
+
+              {/* Pending application notice */}
+              {hasPendingApplication && member.plots < 2 && (
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
+                  <Clock className="size-3.5" />
+                  Application Pending
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -145,90 +146,6 @@ export default async function ProfilePage() {
             </dd>
           </div>
         </dl>
-      </section>
-
-      {/* Savings snapshot */}
-      <section className="mt-5 rounded-3xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="size-5 text-gold" aria-hidden />
-            <h2 className="font-serif text-lg font-bold text-foreground">Savings Snapshot</h2>
-          </div>
-
-          {/* Apply for More button */}
-          {canApplyForMore && (
-            <ApplyForMoreDialog memberName={member.name} />
-          )}
-
-          {/* Pending application notice */}
-          {hasPendingApplication && member.plots < 2 && (
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
-              <Clock className="size-3.5" />
-              Application Pending
-            </div>
-          )}
-        </div>
-
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          <div className="rounded-2xl bg-muted/50 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Saved
-            </p>
-            <p className="mt-1 font-serif text-sm font-bold text-success break-all">{formatNaira(saved)}</p>
-          </div>
-          <div className="rounded-2xl bg-muted/50 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Target
-            </p>
-            <p className="mt-1 font-serif text-sm font-bold text-foreground break-all">
-              {formatNaira(target)}
-            </p>
-          </div>
-          <div className="rounded-2xl bg-muted/50 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Progress
-            </p>
-            <p className="mt-1 font-serif text-sm font-bold text-gold">{percent}%</p>
-          </div>
-        </div>
-
-        {/* Church contribution note */}
-        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
-          <span className="font-semibold text-foreground">{plotLabel(member.plots)} personal</span>
-          <span>·</span>
-          <span>{plotLabel(member.plots)} church (funded by you)</span>
-          {churchDone > 0 && (
-            <>
-              <span>·</span>
-              <span className="text-success font-semibold">
-                {churchDone} church plot{churchDone > 1 ? 's' : ''} fully funded
-              </span>
-            </>
-          )}
-        </div>
-
-        <div className="mt-4 h-4 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-gold transition-all"
-            style={{ width: `${percent}%` }}
-            role="progressbar"
-            aria-valuenow={percent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          />
-        </div>
-
-        {/* Contextual guidance based on status */}
-        {member.status === 'active' && member.plots < 2 && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Complete full payment of {formatNaira(target)} to unlock the option to apply for a second plot.
-          </p>
-        )}
-        {member.status === 'completed' && member.plots >= 2 && (
-          <p className="mt-3 text-xs text-success font-medium">
-            You hold the maximum of 2 personal plots. Your land certificates will be processed after allocation.
-          </p>
-        )}
       </section>
 
       {/* Signed Covenant Document */}
