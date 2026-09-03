@@ -1,18 +1,34 @@
 import Link from 'next/link'
 import { MemberLayout } from '@/components/dawrash/member-layout'
-import { UpdateTargetDialog } from '@/components/dawrash/update-target-dialog'
-import { TargetIncreaseRequestDialog } from '@/components/dawrash/target-increase-request-dialog'
+import { ApplyForMoreDialog } from '@/components/dawrash/apply-for-more-dialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { getCurrentMemberServer } from '@/lib/member-data'
-import { plotLabel, progressPercent, savedKobo, targetKobo, formatNaira, PRICE_PER_PLOT_KOBO, PAYMENT_PER_PERSONAL_PLOT_KOBO, COVENANT_TEXT, MAX_PLOTS, plotsFullyPaid, churchPlotsContributed } from '@/lib/dawrash-data'
-import { CircleCheck, LandPlot, LogOut, Mail, CalendarDays, TrendingUp, ScrollText, CheckCircle2 } from 'lucide-react'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import {
+  plotLabel,
+  progressPercent,
+  savedKobo,
+  targetKobo,
+  formatNaira,
+  COVENANT_TEXT,
+  churchPlotsContributed,
+} from '@/lib/dawrash-data'
+import {
+  CircleCheck,
+  LandPlot,
+  LogOut,
+  Mail,
+  CalendarDays,
+  TrendingUp,
+  ScrollText,
+  CheckCircle2,
+  Clock,
+} from 'lucide-react'
 
 function formatDate(iso: string): string {
-  // timeZone: 'UTC' ensures date-only strings (e.g. '2025-11-04') aren't
-  // shifted into a neighbouring day by the server's or user's local timezone.
   return new Date(iso).toLocaleDateString('en-NG', {
     day: '2-digit',
     month: 'long',
@@ -24,17 +40,37 @@ function formatDate(iso: string): string {
 export const dynamic = 'force-dynamic'
 
 export default async function ProfilePage() {
-
   const member = await getCurrentMemberServer()
 
   const saved = savedKobo(member)
   const target = targetKobo(member)
   const percent = progressPercent(member)
-  // Floor is based on paired payment: can't go below what's already fully paid
-  const minPlots = Math.max(1, plotsFullyPaid(member))
   const churchDone = churchPlotsContributed(member)
-  const canUpdateTarget = member.status !== 'completed' && member.plots > 0 && member.plots < MAX_PLOTS
-  const canRequestIncrease = member.status === 'completed' && member.plots >= MAX_PLOTS
+
+  // Check for a pending "Apply for More" application
+  let hasPendingApplication = false
+  try {
+    const supabase = await createSupabaseServerClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: pending } = await supabase
+        .from('target_increase_requests')
+        .select('id')
+        .eq('member_id', user.id)
+        .eq('status', 'pending')
+        .maybeSingle()
+      hasPendingApplication = Boolean(pending)
+    }
+  } catch {
+    // Non-fatal - fall through with hasPendingApplication = false
+  }
+
+  // "Apply for More" is shown only to completed members with no pending application
+  // and who don't already hold 2 plots
+  const canApplyForMore =
+    member.status === 'completed' &&
+    member.plots < 2 &&
+    !hasPendingApplication
 
   return (
     <MemberLayout>
@@ -118,11 +154,18 @@ export default async function ProfilePage() {
             <TrendingUp className="size-5 text-gold" aria-hidden />
             <h2 className="font-serif text-lg font-bold text-foreground">Savings Snapshot</h2>
           </div>
-          {canUpdateTarget && (
-            <UpdateTargetDialog currentPlots={member.plots} minPlots={minPlots} />
+
+          {/* Apply for More button */}
+          {canApplyForMore && (
+            <ApplyForMoreDialog memberName={member.name} />
           )}
-          {canRequestIncrease && (
-            <TargetIncreaseRequestDialog currentPlots={member.plots} />
+
+          {/* Pending application notice */}
+          {hasPendingApplication && member.plots < 2 && (
+            <div className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-semibold text-warning">
+              <Clock className="size-3.5" />
+              Application Pending
+            </div>
           )}
         </div>
 
@@ -150,14 +193,16 @@ export default async function ProfilePage() {
         </div>
 
         {/* Church contribution note */}
-        <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{plotLabel(member.plots)} personal</span>
           <span>·</span>
           <span>{plotLabel(member.plots)} church (funded by you)</span>
           {churchDone > 0 && (
             <>
               <span>·</span>
-              <span className="text-success font-semibold">{churchDone} church plot{churchDone > 1 ? 's' : ''} fully funded</span>
+              <span className="text-success font-semibold">
+                {churchDone} church plot{churchDone > 1 ? 's' : ''} fully funded
+              </span>
             </>
           )}
         </div>
@@ -172,6 +217,18 @@ export default async function ProfilePage() {
             aria-valuemax={100}
           />
         </div>
+
+        {/* Contextual guidance based on status */}
+        {member.status === 'active' && member.plots < 2 && (
+          <p className="mt-3 text-xs text-muted-foreground">
+            Complete full payment of {formatNaira(target)} to unlock the option to apply for a second plot.
+          </p>
+        )}
+        {member.status === 'completed' && member.plots >= 2 && (
+          <p className="mt-3 text-xs text-success font-medium">
+            You hold the maximum of 2 personal plots. Your land certificates will be processed after allocation.
+          </p>
+        )}
       </section>
 
       {/* Signed Covenant Document */}
@@ -201,9 +258,14 @@ export default async function ProfilePage() {
           </div>
         ) : (
           <div className="mt-4 rounded-2xl border border-dashed border-border bg-muted/20 p-6 text-center">
-            <p className="text-sm text-muted-foreground">Complete and sign your covenant to activate your plot reservation.</p>
-            <Button render={<Link href="/onboarding" />} className="mt-3 rounded-full bg-gold text-forest font-semibold hover:bg-gold-light">
-              Review & Sign Covenant
+            <p className="text-sm text-muted-foreground">
+              Complete and sign your covenant to activate your plot reservation.
+            </p>
+            <Button
+              render={<Link href="/onboarding/covenant" />}
+              className="mt-3 rounded-full bg-gold text-forest font-semibold hover:bg-gold-light"
+            >
+              Review &amp; Sign Covenant
             </Button>
           </div>
         )}

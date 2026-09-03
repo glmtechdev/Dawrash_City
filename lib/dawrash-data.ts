@@ -17,8 +17,12 @@ export const PAYMENT_PER_PERSONAL_PLOT_KOBO = PRICE_PER_PLOT_KOBO * CHURCH_PLOT_
 export const TOTAL_PROJECT_PLOTS = 2_500 // Total Dawrash City master survey plots
 export const TOTAL_PROJECT_TARGET_KOBO = TOTAL_PROJECT_PLOTS * PRICE_PER_PLOT_KOBO
 
-/** Maximum personal plots a member may self-select. Increase beyond this requires admin approval. */
-export const MAX_PLOTS = 5
+/**
+ * Maximum personal plots per member. Every member starts at 1 (auto-assigned).
+ * To hold 2 plots a member must complete payment for plot 1 and get an
+ * "Apply for More" application approved by admin.
+ */
+export const MAX_PLOTS = 2
 
 export function formatNaira(kobo: number): string {
   const naira = Math.round(kobo / 100)
@@ -59,33 +63,6 @@ export type Member = {
   transactions: Transaction[]
 }
 
-export const PLOT_OPTIONS = [
-  {
-    count: 1,
-    tagline: 'Your foundation',
-    description: 'One personal plot + one church plot. Your entry into the Dawrash community.',
-  },
-  {
-    count: 2,
-    tagline: 'Room to grow',
-    description: 'Two personal plots + two church plots. Space for family and legacy.',
-  },
-  {
-    count: 3,
-    tagline: 'Legacy investment',
-    description: 'Three personal plots + three church plots. Building for generations.',
-  },
-  {
-    count: 4,
-    tagline: 'Expand your vision',
-    description: 'Four personal plots + four church plots. A larger stake in the community.',
-  },
-  {
-    count: 5,
-    tagline: 'Maximum allocation',
-    description: 'Five personal plots + five church plots. The full self-service limit.',
-  },
-] as const
 
 export const COVENANT_TEXT = `DAWRASH CITY LAND SAVINGS COVENANT - Version 2.0
 
@@ -155,27 +132,23 @@ export function churchPlotsContributed(member: Pick<Member, 'transactions'>): nu
 // Demo data - reflects the new N2M/personal-plot payment model
 // ---------------------------------------------------------------------------
 
-// The signed-in demo member: 3 personal plots target, ~₦4M saved of ₦6M total
+// Demo member: 1 personal plot, fully paid (N2,000,000 confirmed), status completed.
+// This triggers the "Apply for More" button on the profile page in dev mode.
 export const currentMember: Member = {
   id: 'mbr_001',
   name: 'Daniel Okafor',
   email: 'daniel.okafor@glm.org',
   initials: 'DO',
-  plots: 3,
+  plots: 1,
   memberSince: '2025-11-04',
   covenantSignedAt: '2025-11-06T14:22:00+01:00',
   nuban: '',
   bank: '',
-  status: 'active',
+  status: 'completed',
   transactions: [
-    { id: 't1', date: '2026-08-18', amountKobo: 1_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8842' },
-    { id: 't2', date: '2026-07-30', amountKobo: 900_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8611' },
-    { id: 't3', date: '2026-07-02', amountKobo: 800_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8390' },
-    { id: 't4', date: '2026-06-15', amountKobo: 600_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8144' },
-    { id: 't5', date: '2026-05-28', amountKobo: 420_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-7902' },
-    { id: 't6', date: '2026-05-10', amountKobo: 300_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-7765' },
-    { id: 't7', date: '2026-08-25', amountKobo: 200_000 * 100, method: 'Paystack', status: 'pending', reference: 'DWR-8901' },
-    { id: 't8', date: '2026-04-19', amountKobo: 500_000 * 100, method: 'Paystack', status: 'failed', reference: 'DWR-7203' },
+    { id: 't1', date: '2026-06-01', amountKobo: 1_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8001' },
+    { id: 't2', date: '2026-07-15', amountKobo: 1_000_000 * 100, method: 'Paystack', status: 'confirmed', reference: 'DWR-8002' },
+    { id: 't3', date: '2026-08-25', amountKobo: 200_000 * 100, method: 'Paystack', status: 'pending', reference: 'DWR-8901' },
   ],
 }
 

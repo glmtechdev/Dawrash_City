@@ -89,7 +89,7 @@ export default function LandingPage() {
                 </div>
                 <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 backdrop-blur-md">
                   <p className="text-[10px] uppercase tracking-wider text-white/60">Allocation</p>
-                  <p className="font-serif text-base font-bold text-white sm:text-lg">No Plot Limit</p>
+                  <p className="font-serif text-base font-bold text-white sm:text-lg">1 Plot Per Member</p>
                 </div>
                 <div className="rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 backdrop-blur-md">
                   <p className="text-[10px] uppercase tracking-wider text-white/60">Payments</p>
@@ -150,14 +150,14 @@ export default function LandingPage() {
             <div className="animate-in fade-in zoom-in-95 duration-500 w-full max-w-3xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
                 <ScrollText className="size-3" />
-                <span>The 4-Step Covenant</span>
+                <span>The 3-Step Covenant</span>
               </div>
 
               <h2 className="font-serif text-2xl font-bold tracking-tight text-white sm:text-4xl md:text-5xl">
                 From Church Member to Certificate Holder
               </h2>
 
-              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <div className="rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md">
                   <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
                     01
@@ -172,25 +172,15 @@ export default function LandingPage() {
                   <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
                     02
                   </span>
-                  <h4 className="mt-2.5 font-serif text-base font-bold text-white">Plot Count</h4>
-                  <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                    Lock in your plots at the fixed ₦2,000,000 rate - as many as you want.
-                  </p>
-                </div>
-
-                <div className="rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md">
-                  <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
-                    03
-                  </span>
                   <h4 className="mt-2.5 font-serif text-base font-bold text-white">Digital Covenant</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">
-                    Sign the timestamped legal agreement online.
+                    Sign the timestamped legal agreement online. Your first plot is reserved automatically.
                   </p>
                 </div>
 
-                <div className="rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md">
+                <div className="col-span-2 rounded-3xl border border-white/15 bg-white/[0.06] p-4 backdrop-blur-md sm:col-span-1">
                   <span className="flex size-7 items-center justify-center rounded-lg bg-gold/20 font-serif text-xs font-bold text-gold">
-                    04
+                    03
                   </span>
                   <h4 className="mt-2.5 font-serif text-base font-bold text-white">Live Savings</h4>
                   <p className="mt-1 text-[11px] leading-relaxed text-white/70">

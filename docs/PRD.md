@@ -1,6 +1,6 @@
 # Dawrash City - Product Requirements Document
 
-**Version:** 2.1
+**Version:** 3.0
 **Last updated:** September 2026
 **Status:** Active Development
 **Owner:** Gospel Labour Ministry (GLM)
@@ -11,7 +11,9 @@
 
 Dawrash City is a faith-based land savings platform built exclusively for registered members of Gospel Labour Ministry (GLM). It enables members to reserve plots of land within the Dawrash City development project, track their savings progress, and receive land certificates upon full payment.
 
-The platform is accessed exclusively through the GLM Members app via Single Sign-On (SSO). Members do not create a separate account or log in via separate passwords or email magic links - their GLM membership is their identity.
+The platform is accessed exclusively through the GLM Members app via Single Sign-On (SSO). Members do not create a separate account or log in via separate passwords or email magic links. Their GLM membership is their identity.
+
+Every member who visits the platform for the first time is automatically assigned 1 personal plot. Members who want a second plot must apply through the "Apply for More" form after completing full payment for their first plot.
 
 ---
 
@@ -36,8 +38,9 @@ Dawrash City solves all of these.
 | Give every eligible member a clear view of their savings progress | Dashboard loads with accurate data on first login |
 | Enforce membership gate - non-members cannot access the platform | 100% of access attempts validated through GLM Supabase |
 | Automate payment reconciliation end-to-end via Paystack webhooks | Confirmed payment reflects on member dashboard without any admin action |
-| Provide admin with full programme visibility | Admin can see all members, totals, flags, and certificate queue |
+| Provide admin with full programme visibility | Admin can see all members, totals, flags, applications, and certificate queue |
 | Legally bind members through a digital covenant | Covenant acceptance recorded in Supabase with timestamp |
+| Give every first-time member a plot without friction | Every new member automatically gets 1 personal plot on first visit |
 
 ---
 
@@ -49,6 +52,7 @@ Dawrash City solves all of these.
 - Multiple land projects (Dawrash City only in V1)
 - Direct email magic-link sign-in on Dawrash web app (SSO via GLM app only)
 - Auto-creation of audit flags on payment mismatch (flags are created manually by superadmin directly in Supabase)
+- Applying for more than 2 personal plots in total (the current maximum is 2)
 
 ---
 
@@ -60,11 +64,11 @@ A registered GLM church member who has been approved for the Dawrash City saving
 **Entry point:** GLM Members app -> Profile -> "Open Dawrash City" button
 **Access:** Pure SSO via GLM session token (`/auth/glm?token=<jwt>`)
 **Capabilities:**
+- Automatically receive 1 personal plot on first visit (no selection required)
+- Complete onboarding (covenant signing only)
 - View savings progress and payment history
-- Complete onboarding (plot selection + covenant signing)
 - Make payments directly via Paystack (card, USSD, bank transfer through Paystack)
-- Increase their plot target from the Profile page (up to the self-service cap of 5 personal plots)
-- Apply for a target increase beyond 5 plots after fully completing payment
+- Apply for a second plot after completing full payment for the first plot
 - View land certificate status
 
 ### 5.2 Admin (Super Admin)
@@ -76,9 +80,9 @@ A GLM staff member with elevated access to the Dawrash admin panel.
 - Manage all member records (plots, admin roles)
 - Record offline payments (cash, POS, direct bank transfers made outside Paystack)
 - Manually update transaction statuses (confirm or reject pending transactions)
+- Review, approve, or reject "Apply for More" plot applications
 - Raise and resolve audit flags
 - Issue land certificates to completed members and mark delivery
-- Run one-time plot cap migration to reset any legacy targets above 5 down to 5
 
 ---
 
@@ -102,9 +106,10 @@ https://dawrashcity.com/auth/glm?token=<jwt>
   1. Validates GLM JWT via GLM Supabase project (getUser)
   2. Extracts member identity (email, name, GLM member ID)
   3. Upserts profile row in Dawrash DB via Service Role Client
+     - sets plots = 1 for new members automatically
   4. Generates direct server-side session token
   5. Redirects user into Dawrash app:
-       - First visit (onboarding incomplete) -> /onboarding/plots
+       - First visit (onboarding incomplete) -> /onboarding/covenant
        - Returning member                    -> /dashboard
 ```
 
@@ -114,33 +119,28 @@ https://dawrashcity.com/auth/glm?token=<jwt>
 
 ## 7. Plot Pricing Model
 
-Each plot costs **N1,000,000**. Every personal plot a member purchases is paired with one church-building plot, also funded by the member. This means:
+Each plot costs **N1,000,000**. Every personal plot a member holds is paired with one church-building plot, also funded by the member. This means:
 
-- A member who selects 1 personal plot commits to paying **N2,000,000** total (1 personal + 1 church)
-- A member who selects 3 personal plots commits to paying **N6,000,000** total (3 personal + 3 church)
-- The member's dashboard shows their personal plot count (e.g. "3 Plots") and their total payment commitment
+- Every member is automatically assigned 1 personal plot on first visit. Their total payment commitment is **N2,000,000** (1 personal + 1 church).
+- A member approved for 2 personal plots commits to paying **N4,000,000** total (2 personal + 2 church).
+- The maximum personal plot allocation per member is **2 plots**.
+- The member's dashboard shows their personal plot count (e.g. "2 Plots") and their total payment commitment.
 
-The church-building plots are tracked separately in the admin overview as a running total. They are not assigned to members - they go to the Gospel Labour Ministry church building project.
+The church-building plots are tracked separately in the admin overview as a running total. They are not assigned to members. They go to the Gospel Labour Ministry church building project.
 
-**Self-service cap:** Members may select between 1 and 5 personal plots during onboarding or via the Update Target flow. To go beyond 5, a member must fully complete payment for their current target and then submit a Target Increase Request for admin approval.
+**No self-service target changes.** Members do not select or adjust their own plot count. 1 plot is assigned automatically. To hold 2 plots, a member must apply through the "Apply for More" form after fully completing payment for their first plot.
 
 ---
 
 ## 8. Onboarding Flow
 
-New members landing on `/onboarding/plots` for the first time complete two steps, which persist data directly to Supabase:
+New members landing on `/onboarding/covenant` for the first time complete one step only.
 
-### Step 1 - Plot Selection (`/onboarding/plots`)
-- Member selects their desired number of personal plots (1 to 5)
-- Each option card shows: personal plots, matching church plots, and total payment amount
-- A pricing explainer box shows the N1,000,000 per plot breakdown
-- Clicks "Continue" -> triggers `savePlotSelection` Server Action
-- Writes `plots` count to member profile row in Dawrash Supabase
-- Members can update their target at any time from the Profile page (within the 5-plot self-service cap)
+> The plot selection step (`/onboarding/plots`) has been removed. `plots = 1` is written to the member's profile automatically at first login via the `/auth/glm` SSO handler.
 
-### Step 2 - Covenant Signing (`/onboarding/covenant`)
+### Covenant Signing (`/onboarding/covenant`)
 - Member reads the full Dawrash City Land Savings Covenant (Version 2.0)
-- The covenant text reflects the paired plot model: N1,000,000 per plot, N2,000,000 total per personal plot selected
+- The covenant text reflects the new model: 1 personal plot, N2,000,000 total commitment
 - Ticks acceptance checkbox and clicks "I Accept & Continue"
 - Triggers `acceptCovenant` Server Action
 - Records `covenant_signed_at` timestamp, sets `status = 'active'`, and `onboarding_complete = true` in Supabase
@@ -148,24 +148,38 @@ New members landing on `/onboarding/plots` for the first time complete two steps
 
 ---
 
-## 9. Target Management
+## 9. Apply for More (Second Plot)
 
-### Self-service updates (active members)
-Active members (status = active) with fewer than 5 personal plots can adjust their target from the Profile page using the Update Target dialog. The dialog:
-- Shows personal plot count, matching church plot count, and total payment amount
-- Prevents reducing the target below the number of personal plots already fully paid
-- Caps the increment at 5 personal plots
+Members who have fully paid for their first personal plot (status = completed) may apply for a second plot. This is the only way to increase from 1 to 2 plots.
 
-### Target increase requests (completed members)
-Members who have fully paid for all their personal plots (status = completed) and are at the 5-plot cap can submit a Target Increase Request. The request:
-- Is stored in the `target_increase_requests` Supabase table
-- Requires the member to specify how many total personal plots they want
-- Allows an optional reason
-- Blocks duplicate pending requests
-- Is reviewed and approved or rejected by an admin
+### Eligibility
+- `status === 'completed'` (full payment confirmed for 1 plot, i.e. N2,000,000 confirmed)
+- No existing pending application
 
-### Legacy migration
-Members registered under the old N2,000,000/plot model had their plots reset to 0. They are required to re-select their target from the Profile page under the new pricing model. The admin Overview panel includes a one-time "Cap Plots to 5" button that sets any member with plots > 5 down to exactly 5. Members with 0-5 plots are untouched.
+### Application Form Fields
+| Field | Type | Required |
+|---|---|---|
+| Full Name | Text (pre-filled from profile, editable) | Yes |
+| Phone Number | Text | Yes |
+| Pastor's Name | Text | Yes |
+| Auxano Center | Text (cell/home unit name) | Yes |
+| Residential Address | Text | Yes |
+| Occupation | Text | Yes |
+
+### Flow
+1. Member clicks "Apply for More" on their Profile page
+2. A dialog opens with the 6-field form
+3. On submission, the application is stored in `target_increase_requests` with `status = 'pending'`
+4. Member sees a confirmation message and the button is replaced with "Application Pending"
+5. Admin reviews the application and either approves or rejects it
+6. On approval, the member's `profiles.plots` is set to 2 and their target becomes N4,000,000
+7. On rejection, the member is notified and may apply again (one pending application at a time)
+
+### Rules
+- A member may only have one pending application at a time
+- The maximum total plots via this flow is 2
+- Only completed members (not active members still saving toward plot 1) may apply
+- Admin approval sets `plots = 2` directly. No further self-service target change is available.
 
 ---
 
@@ -173,8 +187,8 @@ Members registered under the old N2,000,000/plot model had their plots reset to 
 
 ### Savings Summary Card
 - Progress ring showing percentage saved (0-100%)
-- Personal plots reserved (e.g. "3 Plots personal + 3 church")
-- Total payment commitment (e.g. N6,000,000)
+- Personal plots reserved (e.g. "1 Plot personal + 1 church" or "2 Plots personal + 2 church")
+- Total payment commitment (e.g. N2,000,000 or N4,000,000)
 - Saved amount, remaining amount, total target
 - Animated progress bar with milestone badges at 25%, 50%, 75%, 100%
 - Stat showing how many personal plots are fully paid and how many church plots have been funded
@@ -253,8 +267,8 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 - Personal plot target badge
 - Member since date and covenant signed timestamp
 - Savings snapshot: saved / target / progress % with church contribution note
-- **Update Target** button - visible for active members with fewer than 5 personal plots. Shows paired cost breakdown. Cannot reduce below confirmed-paid plots.
-- **Request Increase** button - visible for completed members at the 5-plot cap. Submits a target increase request for admin review.
+- **Apply for More** button - visible only for completed members (status = completed) with no existing pending application. Opens the 6-field application form dialog.
+- **Application Pending** notice - replaces the "Apply for More" button when a pending application exists
 - Signed covenant text (Version 2.0)
 - Sign out button
 
@@ -263,11 +277,11 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 ## 14. Admin Dashboard
 
 ### Overview Tab
-- 5 stat cards: Total Inflows Collected, Personal Plots Reserved, Church Building Plots, Church Savers count, Audit Discrepancies
+- 5 stat cards: Total Inflows Collected, Personal Plots Reserved, Church Building Plots, Church Savers count, Pending Applications count
 - Church Building Plots card shows total church plots reserved (always equal to personal plots reserved) and how many are fully funded
 - Status breakdown bars: Active / Completed / Pending Covenant
 - Overall progress ring
-- One-time "Cap Plots to 5" maintenance button - visible only when any member has plots > 5. Opens a confirmation dialog showing how many members will be affected.
+- Pending Applications badge on the Applications tab when there are unreviewed submissions
 
 ### Members Tab
 - Searchable, filterable member table
@@ -281,6 +295,14 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 - Filter by status: All / Confirmed / Pending / Failed
 - Pending transactions show Confirm and Reject action buttons
 - "Record Offline Transfer" button for cash, POS, and direct bank payments
+
+### Applications Tab (new)
+- Lists all "Apply for More" submissions from members
+- Filter by status: All / Pending / Approved / Rejected
+- Each row shows: member name, email, submission date, Pastor's Name, Auxano Center, Phone, Residential Address, Occupation
+- Pending applications show Approve and Reject action buttons
+- Approve sets `profiles.plots = 2` and `target_increase_requests.status = 'approved'`
+- Reject sets `target_increase_requests.status = 'rejected'`; member may reapply
 
 ### Certificate Queue Tab
 - Lists completed members eligible for certificates
@@ -306,7 +328,7 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 | email | text | unique |
 | initials | text | derived from full_name |
 | glm_member_id | uuid | links back to GLM Members DB |
-| plots | smallint | personal plot target (1-5); set during onboarding, updatable from Profile up to the cap |
+| plots | smallint | personal plot target (1 or 2); auto-set to 1 on first visit, set to 2 on application approval |
 | nuban | text | payment account, set by admin |
 | bank | text | default Wema Bank |
 | status | enum | pending_covenant / active / completed |
@@ -361,13 +383,20 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 | created_at | timestamptz | row creation timestamp |
 
 ### `target_increase_requests`
+Extended to store the full "Apply for More" application fields.
+
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid | PK |
 | member_id | uuid | FK to profiles.id |
-| current_plots | int | member's plot count at time of request |
-| requested_plots | int | total personal plots being requested |
-| reason | text | optional note from the member |
+| current_plots | int | member's plot count at time of request (always 1 currently) |
+| requested_plots | int | total personal plots being requested (always 2 currently) |
+| full_name | text | applicant's full name as submitted |
+| phone_number | text | applicant's phone number |
+| pastor_name | text | name of the applicant's pastor |
+| auxano_center | text | applicant's Auxano cell/home unit name |
+| residential_address | text | applicant's home address |
+| occupation | text | applicant's occupation |
 | status | text | pending / approved / rejected |
 | reviewed_by | uuid | nullable FK to profiles.id (admin who reviewed) |
 | reviewed_at | timestamptz | review timestamp |
@@ -449,12 +478,13 @@ Cash deposits, POS transfers, and direct bank transfers made outside Paystack ca
 | `/verify` | Static | Public | SSO guidance |
 | `/auth/glm` | Dynamic | Public (JWT required) | SSO entry point |
 | `/auth/callback` | Dynamic | Internal | Auth redirect handler |
-| `/onboarding/plots` | Static | Authenticated | Plot selection (1-5 personal plots) |
-| `/onboarding/covenant` | Static | Authenticated | Covenant signing |
+| `/onboarding/covenant` | Static | Authenticated | Covenant signing (1 step only) |
 | `/dashboard` | Dynamic | Authenticated member | Member dashboard |
 | `/transactions` | Dynamic | Authenticated member | Payment history and Paystack checkout |
-| `/profile` | Dynamic | Authenticated member | Member profile and target management |
+| `/profile` | Dynamic | Authenticated member | Member profile and Apply for More |
 | `/admin` | Dynamic | Admin only | Admin panel |
+
+Note: `/onboarding/plots` no longer exists as an active route. Any visit to it redirects to `/onboarding/covenant`.
 
 ---
 
@@ -493,7 +523,7 @@ One idea per sentence. If a sentence needs more than one clause, split it.
 
 Always write naira amounts with the naira sign and commas. Do not abbreviate.
 
-Right: N1,000,000 / N2,000,000 / N6,000,000
+Right: N1,000,000 / N2,000,000 / N4,000,000
 Wrong: 1M, N1M, 1,000,000 naira
 
 ### Human review required

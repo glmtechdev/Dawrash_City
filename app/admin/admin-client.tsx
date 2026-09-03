@@ -7,6 +7,7 @@ import {
   OverviewSection,
   MembersSection,
   TransactionsSection,
+  ApplicationsSection,
   CertificatesSection,
   AuditSection,
   RecordPaymentModal,
@@ -20,6 +21,7 @@ export function AdminClient({ initialData }: { initialData: AdminDashboardData }
   const [recordPaymentMemberId, setRecordPaymentMemberId] = useState<string | undefined>()
 
   const pendingTxCount = initialData.transactions.filter((t) => t.status === 'pending').length
+  const pendingApplicationsCount = initialData.applications.filter((a) => a.status === 'pending').length
   const completedWithoutCertCount = initialData.members.filter(
     (m) =>
       (m.status === 'completed' ||
@@ -45,6 +47,7 @@ export function AdminClient({ initialData }: { initialData: AdminDashboardData }
         onSection={setSection}
         counts={{
           pendingTransactions: pendingTxCount,
+          pendingApplications: pendingApplicationsCount,
           pendingCertificates: completedWithoutCertCount,
           unresolvedFlags: unresolvedFlagsCount,
         }}
@@ -55,6 +58,7 @@ export function AdminClient({ initialData }: { initialData: AdminDashboardData }
             transactions={initialData.transactions}
             auditFlags={initialData.auditFlags}
             certificates={initialData.certificates}
+            applications={initialData.applications}
             onNavigate={setSection}
             onOpenRecordPayment={handleOpenRecordPayment}
           />
@@ -74,6 +78,13 @@ export function AdminClient({ initialData }: { initialData: AdminDashboardData }
             members={initialData.members}
             onRefresh={handleRefresh}
             onOpenRecordPayment={handleOpenRecordPayment}
+          />
+        )}
+
+        {section === 'applications' && (
+          <ApplicationsSection
+            applications={initialData.applications}
+            onRefresh={handleRefresh}
           />
         )}
 

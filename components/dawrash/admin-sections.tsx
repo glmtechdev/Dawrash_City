@@ -56,13 +56,16 @@ import {
   type AdminTransaction,
   type AdminAuditFlag,
   type AdminCertificate,
+  type AdminApplication,
+  type ApplicationStatus,
   recordManualTransactionAction,
   updateTransactionStatusAction,
   issueCertificateAction,
   updateCertificateDeliveryAction,
   resolveAuditFlagAction,
   updateMemberAdminRoleAction,
-  capExistingPlotsToMaxAction,
+  approveApplicationAction,
+  rejectApplicationAction,
 } from '@/app/admin/actions'
 import {
   Users,
@@ -84,6 +87,13 @@ import {
   Building2,
   Clock,
   ExternalLink,
+  ClipboardList,
+  CheckCheck,
+  XCircle,
+  Church,
+  Phone,
+  MapPin,
+  Briefcase,
 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
@@ -132,6 +142,7 @@ export function OverviewSection({
   transactions,
   auditFlags,
   certificates,
+  applications,
   onNavigate,
   onOpenRecordPayment,
 }: {
@@ -139,27 +150,10 @@ export function OverviewSection({
   transactions: AdminTransaction[]
   auditFlags: AdminAuditFlag[]
   certificates: AdminCertificate[]
-  onNavigate: (section: 'members' | 'transactions' | 'certificates' | 'audit') => void
+  applications: AdminApplication[]
+  onNavigate: (section: 'members' | 'transactions' | 'applications' | 'certificates' | 'audit') => void
   onOpenRecordPayment: (memberId?: string) => void
 }) {
-  const [capDialogOpen, setCapDialogOpen] = useState(false)
-  const [capping, setCapping] = useState(false)
-
-  async function handleCapPlots() {
-    setCapping(true)
-    const res = await capExistingPlotsToMaxAction()
-    setCapping(false)
-    setCapDialogOpen(false)
-    if (res.success) {
-      if (res.affectedRows === 0) {
-        toast.success('No members had targets above 5. Nothing to update.')
-      } else {
-        toast.success(`Done. ${res.affectedRows} member${res.affectedRows !== 1 ? 's' : ''} capped to 5 plots.`)
-      }
-    } else {
-      toast.error(res.error || 'Failed to cap plots.')
-    }
-  }
   const totalMembers = members.length
   const totalTargetKobo = members.reduce((sum, m) => sum + targetKobo(m), 0)
 
@@ -188,6 +182,7 @@ export function OverviewSection({
 
   const openFlagsCount = auditFlags.filter((f) => !f.resolved).length
   const pendingCertsCount = members.filter((m) => m.status === 'completed' || memberSavedKobo(m) >= targetKobo(m)).length
+  const pendingApplicationsCount = applications.filter((a) => a.status === 'pending').length
 
   // Export handlers
   function exportMembersCsv() {
@@ -258,47 +253,7 @@ export function OverviewSection({
             <Download className="mr-1.5 size-3.5" />
             Export CSV
           </Button>
-
-          {/* One-time maintenance: cap any targets above 5 down to 5 */}
-          {members.some((m) => m.plots > 5) && (
-            <Button
-              variant="outline"
-              onClick={() => setCapDialogOpen(true)}
-              className="rounded-full border-destructive/40 text-destructive hover:bg-destructive/5"
-            >
-              <AlertTriangle className="mr-1.5 size-3.5" />
-              Cap Plots to 5
-            </Button>
-          )}
         </div>
-
-      {/* Cap-plots confirmation dialog */}
-      <Dialog open={capDialogOpen} onOpenChange={setCapDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-lg font-bold">Cap All Targets to 5 Plots</DialogTitle>
-            <DialogDescription>
-              This will set every member whose target exceeds 5 plots down to exactly 5.
-              Members with 5 or fewer plots are untouched. This action cannot be undone automatically.
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {members.filter((m) => m.plots > 5).length} member(s) will be affected.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" className="rounded-full" onClick={() => setCapDialogOpen(false)} disabled={capping}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCapPlots}
-              disabled={capping}
-              className="rounded-full bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50"
-            >
-              {capping ? 'Updating…' : 'Confirm & Cap'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       </div>
 
       {/* KPI Grid */}
@@ -388,31 +343,35 @@ export function OverviewSection({
           </p>
         </div>
 
-        {/* Operational Health */}
+        {/* Pending Applications */}
         <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <span className={cn(
               'flex size-10 items-center justify-center rounded-xl',
-              openFlagsCount > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'
+              pendingApplicationsCount > 0 ? 'bg-gold/10 text-gold' : 'bg-success/10 text-success'
             )}>
-              {openFlagsCount > 0 ? <AlertTriangle className="size-5" /> : <CheckCircle2 className="size-5" />}
+              <ClipboardList className="size-5" />
             </span>
-            {totalPendingKobo > 0 && (
-              <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning text-[10px]">
-                {formatNaira(totalPendingKobo)} pending
+            {pendingApplicationsCount > 0 && (
+              <Badge variant="outline" className="border-gold/30 bg-gold/10 text-gold text-[10px]">
+                Needs review
               </Badge>
             )}
           </div>
           <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Audit Discrepancies
+            Plot Applications
           </p>
           <p className="mt-1 font-serif text-2xl font-bold text-foreground">
-            {openFlagsCount}{' '}
-            <span className="text-xs font-normal text-muted-foreground">Open flags</span>
+            {pendingApplicationsCount}{' '}
+            <span className="text-xs font-normal text-muted-foreground">Pending</span>
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {openFlagsCount === 0 ? 'All transactions reconciled' : 'Requires review in Audit tab'}
-          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate('applications')}
+            className="mt-1 text-xs text-gold hover:underline"
+          >
+            {pendingApplicationsCount === 0 ? 'View all applications' : 'Review now'}
+          </button>
         </div>
       </div>
 
@@ -1669,5 +1628,308 @@ export function RecordPaymentModal({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/* ================================================================== */
+/*  6. APPLICATIONS SECTION                                           */
+/* ================================================================== */
+
+function ApplicationStatusBadge({ status }: { status: ApplicationStatus }) {
+  if (status === 'approved') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-semibold text-success">
+        <CheckCheck className="size-3" />
+        Approved
+      </span>
+    )
+  }
+  if (status === 'rejected') {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-xs font-semibold text-destructive">
+        <XCircle className="size-3" />
+        Rejected
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
+      <Clock className="size-3" />
+      Pending
+    </span>
+  )
+}
+
+export function ApplicationsSection({
+  applications,
+  onRefresh,
+}: {
+  applications: AdminApplication[]
+  onRefresh: () => void
+}) {
+  const [statusFilter, setStatusFilter] = useState<'all' | ApplicationStatus>('all')
+  const [selected, setSelected] = useState<AdminApplication | null>(null)
+  const [approving, setApproving] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+
+  const filtered = useMemo(() => {
+    if (statusFilter === 'all') return applications
+    return applications.filter((a) => a.status === statusFilter)
+  }, [applications, statusFilter])
+
+  const pendingCount = applications.filter((a) => a.status === 'pending').length
+  const approvedCount = applications.filter((a) => a.status === 'approved').length
+  const rejectedCount = applications.filter((a) => a.status === 'rejected').length
+
+  async function handleApprove(app: AdminApplication) {
+    setApproving(true)
+    const res = await approveApplicationAction(app.id, app.memberId)
+    setApproving(false)
+    if (res.success) {
+      toast.success(`Application approved. ${app.memberName || 'Member'} now holds 2 personal plots.`)
+      setSelected(null)
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to approve application.')
+    }
+  }
+
+  async function handleReject(app: AdminApplication) {
+    setRejecting(true)
+    const res = await rejectApplicationAction(app.id)
+    setRejecting(false)
+    if (res.success) {
+      toast.success('Application rejected. Member may reapply.')
+      setSelected(null)
+      onRefresh()
+    } else {
+      toast.error(res.error || 'Failed to reject application.')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-serif text-2xl font-bold tracking-tight text-foreground md:text-3xl">
+            Plot Applications
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Review second-plot applications submitted by completed members.
+          </p>
+        </div>
+
+        {pendingCount > 0 && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-4 py-2 text-sm font-semibold text-gold">
+            <ClipboardList className="size-4" />
+            {pendingCount} pending review
+          </div>
+        )}
+      </div>
+
+      {/* Status tabs */}
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { value: 'all', label: `All (${applications.length})` },
+            { value: 'pending', label: `Pending (${pendingCount})` },
+            { value: 'approved', label: `Approved (${approvedCount})` },
+            { value: 'rejected', label: `Rejected (${rejectedCount})` },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => setStatusFilter(tab.value)}
+            className={cn(
+              'rounded-full px-4 py-1.5 text-xs font-semibold transition-all',
+              statusFilter === tab.value
+                ? 'bg-gold text-gold-foreground shadow-sm'
+                : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Application list */}
+      {filtered.length === 0 ? (
+        <div className="rounded-3xl border border-border bg-card p-12 text-center">
+          <ClipboardList className="mx-auto size-10 text-muted-foreground/40" />
+          <p className="mt-3 font-serif text-base font-semibold text-foreground">No applications</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {statusFilter === 'all'
+              ? 'No members have submitted a second-plot application yet.'
+              : `No ${statusFilter} applications.`}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((app) => (
+            <div
+              key={app.id}
+              className={cn(
+                'rounded-3xl border bg-card p-5 shadow-sm transition-all',
+                app.status === 'pending' ? 'border-gold/30' : 'border-border',
+              )}
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                {/* Left: member identity + key fields */}
+                <div className="flex items-start gap-4">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent font-serif text-sm font-bold text-gold">
+                    {(app.memberName || 'M').slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-foreground">{app.memberName || 'Unknown Member'}</p>
+                      <ApplicationStatusBadge status={app.status} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">{app.memberEmail}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Submitted {formatDate(app.createdAt)}
+                      {app.reviewedAt ? ` · Reviewed ${formatDate(app.reviewedAt)}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right: action buttons */}
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelected(app)}
+                    className="rounded-full border-border text-xs"
+                  >
+                    View Details
+                  </Button>
+                  {app.status === 'pending' && (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(app)}
+                        disabled={approving || rejecting}
+                        className="rounded-full bg-success text-white hover:bg-success/90 text-xs disabled:opacity-50"
+                      >
+                        {approving ? 'Approving...' : 'Approve'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleReject(app)}
+                        disabled={approving || rejecting}
+                        className="rounded-full border-destructive/40 text-destructive hover:bg-destructive/5 text-xs disabled:opacity-50"
+                      >
+                        {rejecting ? 'Rejecting...' : 'Reject'}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Summary row */}
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Church className="size-3.5 text-gold" />
+                  Pastor: <span className="font-medium text-foreground">{app.pastorName || 'N/A'}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <LandPlot className="size-3.5 text-gold" />
+                  Auxano: <span className="font-medium text-foreground">{app.auxanoCenter || 'N/A'}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Phone className="size-3.5 text-gold" />
+                  {app.phoneNumber || 'N/A'}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Briefcase className="size-3.5 text-gold" />
+                  {app.occupation || 'N/A'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Detail drawer */}
+      <Sheet open={Boolean(selected)} onOpenChange={(o) => !o && setSelected(null)}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+          {selected && (
+            <>
+              <SheetHeader className="pb-4">
+                <SheetTitle className="font-serif text-lg font-bold">Application Details</SheetTitle>
+                <SheetDescription>
+                  Second-plot application from {selected.memberName || 'member'}.
+                </SheetDescription>
+              </SheetHeader>
+
+              <div className="space-y-5">
+                {/* Status */}
+                <div className="flex items-center justify-between rounded-2xl border border-border bg-muted/30 px-4 py-3">
+                  <span className="text-sm font-medium text-foreground">Status</span>
+                  <ApplicationStatusBadge status={selected.status} />
+                </div>
+
+                {/* Applying for */}
+                <div className="rounded-2xl border border-gold/25 bg-gold/5 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Applying for</p>
+                  <p className="mt-1 font-serif text-base font-bold text-foreground">2 Personal Plots total</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Current: {selected.currentPlots} plot{selected.currentPlots !== 1 ? 's' : ''} · Requested: {selected.requestedPlots} plots
+                  </p>
+                </div>
+
+                {/* Application fields */}
+                <div className="space-y-3">
+                  {[
+                    { icon: Users, label: 'Full Name', value: selected.fullName },
+                    { icon: Phone, label: 'Phone Number', value: selected.phoneNumber },
+                    { icon: Church, label: "Pastor's Name", value: selected.pastorName },
+                    { icon: LandPlot, label: 'Auxano Center', value: selected.auxanoCenter },
+                    { icon: MapPin, label: 'Residential Address', value: selected.residentialAddress },
+                    { icon: Briefcase, label: 'Occupation', value: selected.occupation },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="rounded-xl border border-border bg-card p-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Icon className="size-3.5 text-gold" />
+                        {label}
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-foreground">{value || 'N/A'}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  Submitted {formatDate(selected.createdAt)}
+                  {selected.reviewedAt ? ` · Reviewed ${formatDate(selected.reviewedAt)}` : ''}
+                </div>
+
+                {/* Actions */}
+                {selected.status === 'pending' && (
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      onClick={() => handleApprove(selected)}
+                      disabled={approving || rejecting}
+                      className="flex-1 rounded-full bg-success text-white hover:bg-success/90 disabled:opacity-50"
+                    >
+                      {approving ? 'Approving...' : 'Approve Application'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleReject(selected)}
+                      disabled={approving || rejecting}
+                      className="flex-1 rounded-full border-destructive/40 text-destructive hover:bg-destructive/5 disabled:opacity-50"
+                    >
+                      {rejecting ? 'Rejecting...' : 'Reject'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
   )
 }

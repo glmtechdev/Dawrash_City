@@ -10,6 +10,8 @@ import {
 } from '@/lib/dawrash-data'
 import { revalidatePath } from 'next/cache'
 
+export type ApplicationStatus = 'pending' | 'approved' | 'rejected'
+
 /* ------------------------------------------------------------------ */
 /*  Authorization Guard for Admin Actions                             */
 /* ------------------------------------------------------------------ */
@@ -116,11 +118,31 @@ export type AdminCertificate = {
   createdAt: string
 }
 
+export type AdminApplication = {
+  id: string
+  memberId: string
+  memberName?: string
+  memberEmail?: string
+  currentPlots: number
+  requestedPlots: number
+  fullName: string
+  phoneNumber: string
+  pastorName: string
+  auxanoCenter: string
+  residentialAddress: string
+  occupation: string
+  status: ApplicationStatus
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  createdAt: string
+}
+
 export type AdminDashboardData = {
   members: AdminMember[]
   transactions: AdminTransaction[]
   auditFlags: AdminAuditFlag[]
   certificates: AdminCertificate[]
+  applications: AdminApplication[]
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,6 +212,16 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
 
     if (certsError) {
       console.warn('[admin/actions] Supabase certificates query error:', certsError.message)
+    }
+
+    // 5. Fetch Plot Applications
+    const { data: rawApplications, error: appsError } = await supabase
+      .from('target_increase_requests')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (appsError) {
+      console.warn('[admin/actions] Supabase target_increase_requests query error:', appsError.message)
     }
 
     // If no profiles returned and in dev mode, fallback to demo data
@@ -314,11 +346,34 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
       }
     })
 
+    const mappedApplications: AdminApplication[] = (rawApplications ?? []).map((a) => {
+      const memberInfo = profilesMap.get(a.member_id)
+      return {
+        id: String(a.id),
+        memberId: String(a.member_id),
+        memberName: memberInfo?.name ?? 'Unknown Member',
+        memberEmail: memberInfo?.email ?? '',
+        currentPlots: Number(a.current_plots ?? 1),
+        requestedPlots: Number(a.requested_plots ?? 2),
+        fullName: String(a.full_name ?? ''),
+        phoneNumber: String(a.phone_number ?? ''),
+        pastorName: String(a.pastor_name ?? ''),
+        auxanoCenter: String(a.auxano_center ?? ''),
+        residentialAddress: String(a.residential_address ?? ''),
+        occupation: String(a.occupation ?? ''),
+        status: (a.status as ApplicationStatus) ?? 'pending',
+        reviewedBy: a.reviewed_by ? String(a.reviewed_by) : null,
+        reviewedAt: a.reviewed_at ? String(a.reviewed_at) : null,
+        createdAt: String(a.created_at ?? new Date().toISOString()),
+      }
+    })
+
     return {
       members: mappedMembers,
       transactions: mappedTransactions,
       auditFlags: mappedFlags,
       certificates: mappedCerts,
+      applications: mappedApplications,
     }
   } catch (err: any) {
     console.error('[admin/actions] fetchAdminDashboardData error:', err.message)
@@ -328,6 +383,7 @@ export async function fetchAdminDashboardData(): Promise<AdminDashboardData> {
       transactions: [],
       auditFlags: [],
       certificates: [],
+      applications: [],
     }
   }
 }
@@ -395,7 +451,7 @@ function getFallbackDashboardData(): AdminDashboardData {
       createdAt: new Date().toISOString(),
     }))
 
-  return { members, transactions, auditFlags, certificates }
+  return { members, transactions, auditFlags, certificates, applications: [] }
 }
 
 /* ------------------------------------------------------------------ */
@@ -658,23 +714,16 @@ export async function updateMemberPlotsAction(
 }
 
 /* ------------------------------------------------------------------ */
-/*  Server Action: Cap Plots to MAX_PLOTS for All Existing Members    */
+/*  Server Action: Approve a Plot Application                        */
 /*                                                                    */
-/*  Runs a single bulk UPDATE against the profiles table:             */
-/*    UPDATE profiles SET plots = 5 WHERE plots > 5                   */
-/*                                                                    */
-/*  Members with plots 0–5 are untouched.                             */
-/*  Safe to run multiple times (idempotent).                          */
-/*                                                                    */
-/*  Alternatively, run this SQL directly in your Supabase SQL editor: */
-/*    UPDATE public.profiles SET plots = 5 WHERE plots > 5;           */
+/*  Sets target_increase_requests.status = 'approved' and            */
+/*  updates profiles.plots = 2 for the member.                       */
 /* ------------------------------------------------------------------ */
 
-export async function capExistingPlotsToMaxAction(): Promise<{
-  success: boolean
-  affectedRows?: number
-  error?: string
-}> {
+export async function approveApplicationAction(
+  applicationId: string,
+  memberId: string,
+): Promise<{ success: boolean; error?: string }> {
   const auth = await assertAdminSession()
   if (!auth.isAuthorized) {
     return { success: false, error: auth.error }
@@ -682,36 +731,81 @@ export async function capExistingPlotsToMaxAction(): Promise<{
 
   try {
     const supabase = createSupabaseAdminClient()
+    const now = new Date().toISOString()
 
-    // Fetch IDs of members that exceed the cap so we can count affected rows
-    const { data: overCap, error: fetchError } = await supabase
-      .from('profiles')
-      .select('id')
-      .gt('plots', 5)
+    // Get the reviewing admin's ID for the audit trail
+    const serverClient = await createSupabaseServerClient()
+    const { data: { user: adminUser } } = await serverClient.auth.getUser()
 
-    if (fetchError) {
-      return { success: false, error: fetchError.message }
+    // Update the application status
+    const { error: appError } = await supabase
+      .from('target_increase_requests')
+      .update({
+        status: 'approved',
+        reviewed_by: adminUser?.id ?? null,
+        reviewed_at: now,
+      })
+      .eq('id', applicationId)
+
+    if (appError) {
+      console.error('[admin/actions] approveApplicationAction app update error:', appError.message)
+      return { success: false, error: appError.message }
     }
 
-    const affectedRows = overCap?.length ?? 0
-
-    if (affectedRows === 0) {
-      return { success: true, affectedRows: 0 }
-    }
-
-    const { error: updateError } = await supabase
+    // Set the member's plot count to 2
+    const { error: plotError } = await supabase
       .from('profiles')
-      .update({ plots: 5, updated_at: new Date().toISOString() })
-      .gt('plots', 5)
+      .update({ plots: 2, updated_at: now })
+      .eq('id', memberId)
 
-    if (updateError) {
-      console.error('[admin/actions] capExistingPlotsToMaxAction error:', updateError.message)
-      return { success: false, error: updateError.message }
+    if (plotError) {
+      console.error('[admin/actions] approveApplicationAction plot update error:', plotError.message)
+      return { success: false, error: plotError.message }
     }
 
     revalidatePath('/admin')
-    return { success: true, affectedRows }
+    return { success: true }
   } catch (err: any) {
-    return { success: false, error: err.message || 'Failed to cap existing plots' }
+    return { success: false, error: err.message || 'Failed to approve application' }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Server Action: Reject a Plot Application                         */
+/* ------------------------------------------------------------------ */
+
+export async function rejectApplicationAction(
+  applicationId: string,
+): Promise<{ success: boolean; error?: string }> {
+  const auth = await assertAdminSession()
+  if (!auth.isAuthorized) {
+    return { success: false, error: auth.error }
+  }
+
+  try {
+    const supabase = createSupabaseAdminClient()
+    const now = new Date().toISOString()
+
+    const serverClient = await createSupabaseServerClient()
+    const { data: { user: adminUser } } = await serverClient.auth.getUser()
+
+    const { error } = await supabase
+      .from('target_increase_requests')
+      .update({
+        status: 'rejected',
+        reviewed_by: adminUser?.id ?? null,
+        reviewed_at: now,
+      })
+      .eq('id', applicationId)
+
+    if (error) {
+      console.error('[admin/actions] rejectApplicationAction error:', error.message)
+      return { success: false, error: error.message }
+    }
+
+    revalidatePath('/admin')
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Failed to reject application' }
   }
 }

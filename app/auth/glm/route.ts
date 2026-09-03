@@ -128,6 +128,8 @@ export async function GET(request: NextRequest) {
     await adminClient.from("profiles").delete().eq("id", existingProfile.id);
   }
 
+  // Every new member is automatically assigned 1 personal plot.
+  // For existing members we preserve their current plot count (do not overwrite).
   await adminClient.from("profiles").upsert(
     {
       id: dawrashUserId,
@@ -136,6 +138,9 @@ export async function GET(request: NextRequest) {
       email,
       initials,
       onboarding_complete: existingProfile?.onboarding_complete ?? false,
+      // Only set plots = 1 on first visit; on subsequent visits plots is preserved via the
+      // ignoreDuplicates approach by not including plots in returning upsert for existing rows.
+      ...(!existingProfile ? { plots: 1 } : {}),
     },
     { onConflict: "id" }
   );
@@ -163,7 +168,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Build the response redirect early so we can write cookies onto it
-  const destination = isNewMember ? "/onboarding/plots" : "/dashboard";
+  const destination = isNewMember ? "/onboarding/covenant" : "/dashboard";
   const response = NextResponse.redirect(`${appOrigin}${destination}`);
 
   // Create an SSR client that writes cookies directly onto the response

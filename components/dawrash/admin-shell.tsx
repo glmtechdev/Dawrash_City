@@ -19,12 +19,14 @@ import {
   ExternalLink,
   ShieldAlert,
   Menu,
+  ClipboardList,
 } from 'lucide-react'
 
-export type AdminSection = 'overview' | 'members' | 'transactions' | 'certificates' | 'audit'
+export type AdminSection = 'overview' | 'members' | 'transactions' | 'applications' | 'certificates' | 'audit'
 
 export type AdminCounts = {
   pendingTransactions?: number
+  pendingApplications?: number
   pendingCertificates?: number
   unresolvedFlags?: number
 }
@@ -48,12 +50,20 @@ const navItems: {
     badgeColor: 'bg-warning/20 text-warning border-warning/30',
   },
   {
+    value: 'applications',
+    label: 'Plot Applications',
+    shortLabel: 'Applications',
+    icon: ClipboardList,
+    badgeKey: 'pendingApplications',
+    badgeColor: 'bg-gold/20 text-gold border-gold/30',
+  },
+  {
     value: 'certificates',
     label: 'Certificate Queue',
     shortLabel: 'Certificates',
     icon: FileCheck,
     badgeKey: 'pendingCertificates',
-    badgeColor: 'bg-gold/20 text-gold border-gold/30',
+    badgeColor: 'bg-success/20 text-success border-success/30',
   },
   {
     value: 'audit',
@@ -79,6 +89,7 @@ export function AdminShell({
   const [mobileOpen, setMobileOpen] = useState(false)
   const totalAlerts =
     (counts.pendingTransactions || 0) +
+    (counts.pendingApplications || 0) +
     (counts.pendingCertificates || 0) +
     (counts.unresolvedFlags || 0)
 
