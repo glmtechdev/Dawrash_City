@@ -7,6 +7,7 @@ import {
   type PaymentStatus,
   members as fallbackMembers,
   auditFlags as fallbackAuditFlags,
+  MAX_PLOTS,
 } from '@/lib/dawrash-data'
 import { revalidatePath } from 'next/cache'
 
@@ -698,7 +699,7 @@ export async function updateMemberPlotsAction(
     const supabase = createSupabaseAdminClient()
     const { error } = await supabase
       .from('profiles')
-      .update({ plots: Math.max(1, plots), updated_at: new Date().toISOString() })
+      .update({ plots: Math.min(MAX_PLOTS, Math.max(1, plots)), updated_at: new Date().toISOString() })
       .eq('id', memberId)
 
     if (error) {

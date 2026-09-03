@@ -121,6 +121,10 @@ function memberSavedKobo(member: AdminMember): number {
     .reduce((sum, t) => sum + t.amountKobo, 0)
 }
 
+function isChurchMember(member: AdminMember): boolean {
+  return !member.isAdmin && !member.isSuperadmin
+}
+
 function downloadCsv(filename: string, csvContent: string) {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
@@ -154,8 +158,9 @@ export function OverviewSection({
   onNavigate: (section: 'members' | 'transactions' | 'applications' | 'certificates' | 'audit') => void
   onOpenRecordPayment: (memberId?: string) => void
 }) {
-  const totalMembers = members.length
-  const totalTargetKobo = members.reduce((sum, m) => sum + targetKobo(m), 0)
+  const churchMembers = members.filter(isChurchMember)
+  const totalMembers = churchMembers.length
+  const totalTargetKobo = churchMembers.reduce((sum, m) => sum + targetKobo(m), 0)
 
   const confirmedTx = transactions.filter((t) => t.status === 'confirmed')
   const totalCollectedKobo = confirmedTx.reduce((sum, t) => sum + t.amountKobo, 0)
@@ -164,7 +169,7 @@ export function OverviewSection({
   const totalPendingKobo = pendingTx.reduce((sum, t) => sum + t.amountKobo, 0)
 
   const overallProgress = percent(totalCollectedKobo, totalTargetKobo)
-  const totalPersonalPlotsReserved = members.reduce((s, m) => s + m.plots, 0)
+  const totalPersonalPlotsReserved = churchMembers.reduce((s, m) => s + m.plots, 0)
   // Each personal plot is paired with one church plot, both funded by the member
   const totalChurchPlotsReserved = totalPersonalPlotsReserved
   const totalPlotsReserved = totalPersonalPlotsReserved // displayed as personal plots
@@ -176,12 +181,12 @@ export function OverviewSection({
     completed: 0,
     pending_covenant: 0,
   }
-  members.forEach((m) => {
+  churchMembers.forEach((m) => {
     byStatus[m.status] = (byStatus[m.status] || 0) + 1
   })
 
   const openFlagsCount = auditFlags.filter((f) => !f.resolved).length
-  const pendingCertsCount = members.filter((m) => m.status === 'completed' || memberSavedKobo(m) >= targetKobo(m)).length
+  const pendingCertsCount = churchMembers.filter((m) => m.status === 'completed' || memberSavedKobo(m) >= targetKobo(m)).length
   const pendingApplicationsCount = applications.filter((a) => a.status === 'pending').length
 
   // Export handlers
@@ -1135,7 +1140,9 @@ export function CertificatesSection({
 
   // Members who have completed their payment quota
   const completedMembers = useMemo(() => {
-    return members.filter((m) => m.status === 'completed' || memberSavedKobo(m) >= targetKobo(m))
+    return members.filter(
+      (m) => isChurchMember(m) && m.plots > 0 && (m.status === 'completed' || memberSavedKobo(m) >= targetKobo(m)),
+    )
   }, [members])
 
   const certsByMember = useMemo(() => {

@@ -83,11 +83,13 @@ export default function CovenantPage() {
           </ScrollArea>
         </div>
 
-        <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-card p-4">
+        <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-warning/50 bg-warning/10 p-4 shadow-sm transition-colors hover:bg-warning/15">
           <Checkbox
             checked={accepted}
             onCheckedChange={(v) => setAccepted(v === true)}
-            className="mt-0.5 data-[state=checked]:border-gold data-[state=checked]:bg-gold"
+            required
+            aria-required="true"
+            className="mt-0.5 border-warning bg-card text-warning data-[state=checked]:border-warning data-[state=checked]:bg-warning data-[state=checked]:text-white"
           />
           <span className="text-sm font-medium text-foreground">
             I have read and I irrevocably accept this covenant.
