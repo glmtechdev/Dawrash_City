@@ -272,8 +272,8 @@ export function TransactionsContent({ member }: { member: Member }) {
               <p className="text-[11px] text-muted-foreground">dawrashcity.com</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-            <ShieldCheck className="size-3.5 text-gold" />
+          <div className="flex items-center gap-1.5 rounded-full bg-[#e6f6fb] px-2.5 py-1 text-[11px] font-semibold text-[#087ea4]">
+            <ShieldCheck className="size-3.5 text-[#087ea4]" />
             Secured by Paystack
           </div>
         </div>
@@ -400,7 +400,8 @@ export function TransactionsContent({ member }: { member: Member }) {
             type="button"
             disabled={loadingPay || numericAmount <= 0}
             onClick={handlePaystackCheckout}
-            className="h-13 w-full rounded-2xl bg-navy text-base font-bold text-white hover:bg-navy/90 shadow-md transition-transform active:scale-[0.99] disabled:opacity-40"
+            className="h-13 w-full rounded-2xl text-base font-bold text-white shadow-md transition-transform active:scale-[0.99] disabled:opacity-40"
+            style={{ background: '#1a3050' }}
           >
             <Lock className="mr-2 size-4" />
             {loadingPay ? (

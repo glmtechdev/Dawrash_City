@@ -294,7 +294,7 @@ export default async function DashboardPage() {
             <Lock className="size-3.5 text-gold" aria-hidden />
             <p className="text-xs font-bold text-foreground">Dawrash City Land Savings</p>
           </div>
-          <p className="text-[11px] text-muted-foreground">Secured by Paystack</p>
+          <p className="text-[11px] font-semibold" style={{ color: '#00C3F7' }}>Secured by Paystack</p>
         </div>
 
         {/* Amount due + CTA */}
@@ -321,7 +321,8 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/transactions"
-            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-navy px-6 py-3 text-sm font-bold text-white transition-all hover:bg-navy/90 active:scale-[0.98]"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3 text-sm font-bold text-white transition-all active:scale-[0.98]"
+            style={{ background: '#1a3050' }}
           >
             <Lock className="size-4" aria-hidden />
             Make a Contribution
