@@ -117,7 +117,7 @@ export default async function ProfilePage() {
 
         <Separator className="my-6" />
 
-        <dl className="grid gap-5 sm:grid-cols-2">
+        <dl className="grid grid-cols-2 gap-5">
           <div>
             <dt className="flex items-center gap-2 text-sm text-muted-foreground">
               <CalendarDays className="size-4" aria-hidden />

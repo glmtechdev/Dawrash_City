@@ -1,8 +1,5 @@
-import Link from 'next/link'
 import { BottomNav } from '@/components/dawrash/bottom-nav'
 import { MemberTopNav, MemberDesktopBrand } from '@/components/dawrash/member-nav'
-import { Button } from '@/components/ui/button'
-import { Bell } from 'lucide-react'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 async function getIsAdmin(): Promise<boolean> {
@@ -25,20 +22,12 @@ export async function MemberLayout({ children }: { children: React.ReactNode }) 
   const isAdmin = await getIsAdmin()
 
   return (
-    <div className="min-h-[100svh] bg-background pb-28 md:pb-0">
+    <div className="min-h-svh bg-background pb-28 md:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3.5">
           <MemberDesktopBrand />
           <div className="flex items-center gap-2">
             <MemberTopNav isAdmin={isAdmin} />
-            <Button
-              render={<Link href="/transactions" aria-label="View payments" />}
-              variant="ghost"
-              size="icon"
-              className="rounded-full text-muted-foreground hover:text-foreground"
-            >
-              <Bell className="size-5" aria-hidden />
-            </Button>
           </div>
         </div>
       </header>
