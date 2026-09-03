@@ -24,6 +24,9 @@ export function AdminClient({ initialData }: { initialData: AdminDashboardData }
   const pendingApplicationsCount = initialData.applications.filter((a) => a.status === 'pending').length
   const completedWithoutCertCount = initialData.members.filter(
     (m) =>
+      !m.isAdmin &&
+      !m.isSuperadmin &&
+      m.plots > 0 &&
       (m.status === 'completed' ||
         m.transactions.filter((t) => t.status === 'confirmed').reduce((s, t) => s + t.amountKobo, 0) >=
           m.plots * 2_000_000 * 100) &&
