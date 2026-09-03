@@ -121,7 +121,7 @@ export default async function ProfilePage() {
           <div>
             <dt className="flex items-center gap-2 text-sm text-muted-foreground">
               <CalendarDays className="size-4" aria-hidden />
-              Member since
+              Date Joined
             </dt>
             <dd className="mt-1 font-semibold text-foreground">
               {formatDate(member.memberSince)}
@@ -130,16 +130,11 @@ export default async function ProfilePage() {
           <div>
             <dt className="flex items-center gap-2 text-sm text-muted-foreground">
               <CircleCheck className="size-4" aria-hidden />
-              Covenant status
+              Covenant
             </dt>
-            <dd className="mt-1 flex items-center gap-2 font-semibold">
+            <dd className="mt-1 font-semibold">
               {member.covenantSignedAt ? (
-                <>
-                  <span className="text-success">Signed</span>
-                  <span className="text-sm font-normal text-muted-foreground">
-                    on {formatDate(member.covenantSignedAt)}
-                  </span>
-                </>
+                <span className="text-success">Signed</span>
               ) : (
                 <span className="text-warning">Not signed</span>
               )}

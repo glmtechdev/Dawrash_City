@@ -241,7 +241,7 @@ export default async function DashboardPage() {
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CalendarDays className="size-4 text-gold" aria-hidden />
-            Joined
+            Date Joined
           </div>
           <p className="mt-1.5 font-semibold text-foreground">{formatDate(member.memberSince)}</p>
         </div>
