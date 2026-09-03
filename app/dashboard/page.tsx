@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils'
 import { getCurrentMemberServer } from '@/lib/member-data'
 import {
   formatNaira,
-  plotLabel,
   savedKobo,
   targetKobo,
   progressPercent,
@@ -96,18 +95,18 @@ export default async function DashboardPage() {
               <Sparkles className="size-5" aria-hidden />
             </span>
             <div className="flex-1 min-w-0">
-              <h2 className="font-serif text-lg font-bold text-foreground">Complete Your Land Onboarding</h2>
+              <h2 className="font-serif text-lg font-bold text-foreground">Activate Your Membership</h2>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                Select your land plot count and accept the Dawrash Covenant to lock in your reservation.
+                Your first plot is reserved. Sign the Dawrash Covenant to activate your membership.
               </p>
             </div>
           </div>
           <Button
-            render={<Link href="/onboarding/plots" />}
+            render={<Link href="/onboarding/covenant" />}
             size="lg"
             className="mt-4 w-full rounded-full bg-gold text-sm font-semibold text-gold-foreground hover:bg-gold/90 sm:w-auto sm:px-6"
           >
-            Start Onboarding
+            Review Covenant
             <ArrowRight className="size-4 ml-1" />
           </Button>
         </div>
@@ -125,28 +124,28 @@ export default async function DashboardPage() {
           {/* Left: target label + 2 stat boxes */}
           <div className="order-2 w-full text-center sm:order-1 sm:text-left">
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: '#e5b85c' }}>
-              Your Land Target
+              Your Land Allocation
             </p>
             <p className="mt-1.5 font-serif text-2xl font-bold text-white leading-tight">
-              {plotLabel(member.plots)} personal
+              {member.plots} personal plot{member.plots > 1 ? 's' : ''}
             </p>
             <p className="text-xs text-white/50">
-              + {plotLabel(member.plots)} church · {formatNaira(PAYMENT_PER_PERSONAL_PLOT_KOBO * member.plots)} total
+              Includes {member.plots} church-building plot{member.plots > 1 ? 's' : ''} · {formatNaira(PAYMENT_PER_PERSONAL_PLOT_KOBO * member.plots)} total
             </p>
 
-            {/* 2 stat boxes — Saved (green) + Remaining (amber) */}
+            {/* 2 stat boxes — amount saved + balance */}
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-2xl p-3.5" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                <p className="text-[11px] uppercase tracking-wide text-white/50">Saved</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/50">Amount saved</p>
                 <p className="mt-1 font-serif text-lg font-bold text-[#4ade80]">{formatNaira(saved)}</p>
               </div>
               <div className="rounded-2xl p-3.5" style={{ background: 'rgba(255,255,255,0.07)' }}>
-                <p className="text-[11px] uppercase tracking-wide text-white/50">Remaining</p>
+                <p className="text-[11px] uppercase tracking-wide text-white/50">Balance</p>
                 <p className={cn(
                   'mt-1 font-serif text-lg font-bold',
                   remaining === 0 ? 'text-[#4ade80]' : 'text-[#f59e0b]'
                 )}>
-                  {remaining === 0 ? 'Complete' : formatNaira(remaining)}
+                  {remaining === 0 ? 'Fully funded' : formatNaira(remaining)}
                 </p>
               </div>
             </div>
@@ -168,7 +167,7 @@ export default async function DashboardPage() {
                 {percent}%
               </span>
               <span className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(229,184,92,0.5)' }}>
-                Saved
+                Funded
               </span>
             </ProgressRing>
           </div>
@@ -190,7 +189,7 @@ export default async function DashboardPage() {
               aria-valuenow={percent}
               aria-valuemin={0}
               aria-valuemax={100}
-              aria-label={`${percent}% saved`}
+              aria-label={`${percent}% funded`}
             />
             {/* Tick notches */}
             {[25, 50, 75].map((tick) => (
@@ -227,12 +226,6 @@ export default async function DashboardPage() {
                 ? `${plotsDone} personal plot${plotsDone > 1 ? 's' : ''} fully paid`
                 : 'No plots fully paid yet'}
             </span>
-            {churchPlotsDone > 0 && (
-              <span className="flex items-center gap-1.5">
-                <Church className="size-3.5" style={{ color: '#e5b85c' }} aria-hidden />
-                {churchPlotsDone} church plot{churchPlotsDone > 1 ? 's' : ''} funded
-              </span>
-            )}
             {plotsRemaining > 0 && (
               <span className="flex items-center gap-1.5">
                 <TrendingUp className="size-3.5" style={{ color: '#e5b85c' }} aria-hidden />
@@ -309,9 +302,9 @@ export default async function DashboardPage() {
           <div>
             {remaining > 0 ? (
               <>
-                <p className="text-xs font-medium text-muted-foreground">Remaining to your target</p>
-                <p className="mt-0.5 font-serif text-2xl font-bold text-foreground">
-                  {formatNaira(remaining)}
+                <p className="text-xs font-medium text-muted-foreground">Continue your land savings</p>
+                <p className="mt-0.5 font-serif text-lg font-bold text-foreground">
+                  Add to your allocation
                 </p>
               </>
             ) : (
