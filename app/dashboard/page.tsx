@@ -88,7 +88,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Pending Onboarding Banner ── */}
-      {(!member.covenantSignedAt || member.plots === 0) && (
+      {!member.covenantSignedAt && (
         <div className="mt-5 rounded-3xl border border-gold/40 bg-gold/10 p-5 text-foreground shadow-sm">
           <div className="flex items-start gap-3.5">
             <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gold text-gold-foreground">
