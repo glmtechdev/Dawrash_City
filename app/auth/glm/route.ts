@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
   // ── 6. Check existing profile in Dawrash DB ──────────────────
   const { data: existingProfile } = await adminClient
     .from("profiles")
-    .select("id, onboarding_complete")
+    .select("id, onboarding_complete, plots, is_admin, is_superadmin")
     .or(`glm_member_id.eq.${glmMemberId},email.eq.${email}`)
     .maybeSingle();
 
@@ -128,8 +128,12 @@ export async function GET(request: NextRequest) {
     await adminClient.from("profiles").delete().eq("id", existingProfile.id);
   }
 
-  // Every new member is automatically assigned 1 personal plot.
-  // For existing members we preserve their current plot count (do not overwrite).
+  const isAdmin = Boolean(existingProfile?.is_admin || existingProfile?.is_superadmin);
+  const currentPlots = Number(existingProfile?.plots ?? 0);
+  const shouldAssignInitialPlot = !isAdmin && currentPlots < 1;
+
+  // Every regular member must have at least 1 personal plot. Preserve an
+  // approved 2-plot allocation and never assign plots to admin profiles.
   await adminClient.from("profiles").upsert(
     {
       id: dawrashUserId,
@@ -138,9 +142,7 @@ export async function GET(request: NextRequest) {
       email,
       initials,
       onboarding_complete: existingProfile?.onboarding_complete ?? false,
-      // Only set plots = 1 on first visit; on subsequent visits plots is preserved via the
-      // ignoreDuplicates approach by not including plots in returning upsert for existing rows.
-      ...(!existingProfile ? { plots: 1 } : {}),
+      ...(shouldAssignInitialPlot ? { plots: 1 } : {}),
     },
     { onConflict: "id" }
   );
